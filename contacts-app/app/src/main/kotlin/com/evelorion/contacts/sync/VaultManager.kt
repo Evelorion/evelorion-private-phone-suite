@@ -22,6 +22,11 @@ import org.json.JSONObject
  */
 class VaultManager private constructor(private val context: Context) {
 
+    class MfaRequired(
+        val methods: List<String>,
+        val requireAll: Boolean,
+    ) : Exception("需要两步验证码")
+
     companion object {
         @Volatile
         private var instance: VaultManager? = null
@@ -115,6 +120,7 @@ class VaultManager private constructor(private val context: Context) {
         deviceName: String,
         cacheOnDevice: Boolean,
         requireScreenLock: Boolean,
+        mfaCode: String? = null,
     ): Boolean {
         session.validateUrl(baseUrl)?.let { throw IllegalArgumentException(it) }
         session.baseUrl = baseUrl
@@ -128,11 +134,12 @@ class VaultManager private constructor(private val context: Context) {
         val salt = Base64.decode(kdf.getString("salt"), Base64.NO_WRAP)
 
         try {
-            val response = api.loginWithRecovery(
+            val firstResponse = api.loginWithRecovery(
                 username = username,
                 recoveryAuthSecret = VaultCrypto.deriveRecoveryAuthSecret(recoveryKey, salt),
                 deviceName = deviceName,
             )
+            val response = completeMfaIfNeeded(api, firstResponse, mfaCode)
             persistSession(username, response)
 
             // 解开 DEK 用的是另一条路径：恢复码派生的 RKEK
@@ -161,6 +168,7 @@ class VaultManager private constructor(private val context: Context) {
         deviceName: String,
         cacheOnDevice: Boolean,
         requireScreenLock: Boolean,
+        mfaCode: String? = null,
     ) {
         session.validateUrl(baseUrl)?.let { throw IllegalArgumentException(it) }
         session.baseUrl = baseUrl
@@ -175,7 +183,12 @@ class VaultManager private constructor(private val context: Context) {
             kdf.optInt("parallelism", VaultCrypto.KDF_PARALLELISM),
         )
         try {
-            val response = api.login(username, VaultCrypto.deriveAuthSecret(masterKey, salt), deviceName)
+            val firstResponse = api.login(
+                username,
+                VaultCrypto.deriveAuthSecret(masterKey, salt),
+                deviceName,
+            )
+            val response = completeMfaIfNeeded(api, firstResponse, mfaCode)
             persistSession(username, response)
 
             val kek = VaultCrypto.deriveKek(masterKey, salt)
@@ -342,6 +355,30 @@ class VaultManager private constructor(private val context: Context) {
     }
 
     // ---------------------------------------------------------------- 内部
+
+    private fun completeMfaIfNeeded(
+        api: SyncApi,
+        response: JSONObject,
+        mfaCode: String?,
+    ): JSONObject {
+        if (!response.optBoolean("mfaRequired", false)) return response
+
+        val methodsJson = response.optJSONArray("methods")
+        val methods = if (methodsJson == null) {
+            emptyList()
+        } else {
+            (0 until methodsJson.length()).mapNotNull { index ->
+                methodsJson.optString(index).takeIf { it.isNotBlank() }
+            }
+        }
+        if (mfaCode.isNullOrBlank()) {
+            throw MfaRequired(methods, response.optBoolean("requireAll", false))
+        }
+
+        val token = response.optString("mfaToken")
+        if (token.isBlank()) throw IllegalStateException("服务器未返回两步验证令牌")
+        return api.completeMfa(token, mfaCode)
+    }
 
     private fun persistSession(username: String, response: JSONObject) {
         session.username = username

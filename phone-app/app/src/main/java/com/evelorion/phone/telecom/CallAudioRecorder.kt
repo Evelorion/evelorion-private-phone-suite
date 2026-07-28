@@ -45,10 +45,12 @@ object CallAudioRecorder {
         val target = runCatching { createOutput(context, number) }
             .getOrElse { return Result.Failed(it.message ?: "无法创建录音文件") }
 
+        // 普通第三方应用通常拿不到通话上下行音轨。VOICE_COMMUNICATION 在部分设备上
+        // 会“启动成功”却只写入静音，因此先录系统明确允许的本机麦克风。
         val started = runCatching {
-            createRecorder(context, target.fileDescriptor, MediaRecorder.AudioSource.VOICE_COMMUNICATION)
-        }.recoverCatching {
             createRecorder(context, target.fileDescriptor, MediaRecorder.AudioSource.MIC)
+        }.recoverCatching {
+            createRecorder(context, target.fileDescriptor, MediaRecorder.AudioSource.VOICE_RECOGNITION)
         }
 
         val activeRecorder = started.getOrElse {

@@ -108,6 +108,20 @@ class SyncApi(
         authenticated = false,
     )
 
+    fun completeMfa(mfaToken: String, code: String): JSONObject = request(
+        "POST", "/v1/session/mfa/complete",
+        JSONObject().apply {
+            put("mfaToken", mfaToken)
+            val normalized = code.trim().replace(" ", "")
+            if (normalized.matches(Regex("\\d{6}"))) {
+                put("totpCode", normalized)
+            } else {
+                put("backupCode", normalized)
+            }
+        },
+        authenticated = false,
+    )
+
     fun logout(): JSONObject = request("POST", "/v1/session/logout", JSONObject())
 
     fun getVault(): JSONObject = request("GET", "/v1/vault", null)

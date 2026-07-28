@@ -22,6 +22,8 @@
 
 # Runtime data and backups
 **/data/
+!**/src/main/**/data/
+!**/src/main/**/data/**
 **/backups/
 **/*.db
 **/*.db-wal

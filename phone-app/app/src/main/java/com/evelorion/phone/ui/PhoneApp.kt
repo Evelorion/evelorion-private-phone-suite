@@ -1,5 +1,8 @@
 package com.evelorion.phone.ui
 
+import android.database.ContentObserver
+import android.os.Handler
+import android.os.Looper
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -13,12 +16,18 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.evelorion.phone.bridge.ContactsBridge
 import com.evelorion.phone.data.PhoneData
 import com.evelorion.phone.ui.screens.*
 import com.evelorion.phone.ui.screens.SettingsStatus
@@ -96,8 +105,36 @@ fun PhoneApp(
     // 联系人和通话记录都要跨进程/查数据库，必须离开主线程。
     // 放在 LaunchedEffect 里而不是 remember{}：remember 的初始化在
     // 组合期间同步执行，那就等于在主线程上做 IO。
-    val context = androidx.compose.ui.platform.LocalContext.current
-    androidx.compose.runtime.LaunchedEffect(Unit) {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var contactsRevision by remember { mutableStateOf(0) }
+
+    DisposableEffect(context, lifecycleOwner) {
+        val contactsObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
+            override fun onChange(selfChange: Boolean) {
+                contactsRevision++
+            }
+        }
+        runCatching {
+            context.contentResolver.registerContentObserver(
+                ContactsBridge.CONTACTS_URI,
+                true,
+                contactsObserver,
+            )
+        }
+
+        val lifecycleObserver = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) contactsRevision++
+        }
+        lifecycleOwner.lifecycle.addObserver(lifecycleObserver)
+
+        onDispose {
+            runCatching { context.contentResolver.unregisterContentObserver(contactsObserver) }
+            lifecycleOwner.lifecycle.removeObserver(lifecycleObserver)
+        }
+    }
+
+    androidx.compose.runtime.LaunchedEffect(contactsRevision) {
         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             runCatching { PhoneData.load(context) }
             // 状态也在这里刷 —— 三个来源都要跨进程或读库，全是耗时操作

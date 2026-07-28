@@ -26,6 +26,7 @@ object ContactsBridge {
 
     /** 和通讯录 manifest 里声明的 authority 逐字一致。写错的表现是静默查不到。 */
     private const val AUTHORITY = "com.evelorion.contacts.privateprovider"
+    val CONTACTS_URI: Uri = Uri.parse("content://$AUTHORITY/contacts")
 
     data class Contact(
         val id: Int,
@@ -41,7 +42,7 @@ object ContactsBridge {
 
     /** 全部加密联系人。**耗时操作，必须在后台线程调用。** */
     fun loadAll(context: Context): List<Contact> = query(
-        context, Uri.parse("content://$AUTHORITY/contacts")
+        context, CONTACTS_URI
     )
 
     /**

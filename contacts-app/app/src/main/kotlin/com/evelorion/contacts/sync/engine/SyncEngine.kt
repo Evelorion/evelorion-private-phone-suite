@@ -3,6 +3,7 @@ package com.evelorion.contacts.sync.engine
 import android.content.Context
 import android.util.Base64
 import android.util.Log
+import com.evelorion.contacts.data.PrivateContactStore
 import org.fossify.commons.extensions.contactsDB
 import org.fossify.commons.extensions.groupsDB
 import org.fossify.commons.models.contacts.Group
@@ -97,6 +98,7 @@ class SyncEngine(private val context: Context) {
             val pushResult = push(dek, api)
             updateManifest(dek, api)
             rebuildBlindIndex(dek)
+            PrivateContactStore.notifyChanged(context)
 
             val head = runCatching { api.status().optLong("serverSeq", 0) }.getOrDefault(0L)
             dao.putState(

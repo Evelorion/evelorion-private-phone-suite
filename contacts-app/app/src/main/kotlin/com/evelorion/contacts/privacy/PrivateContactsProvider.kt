@@ -97,6 +97,7 @@ class PrivateContactsProvider : ContentProvider() {
                 .add(COL_STARRED, if (c.starred == 1) 1 else 0)
                 .add(COL_GROUPS, groups.joinToString(GROUP_SEPARATOR))
         }
+        cursor.setNotificationUri(context.contentResolver, PrivateContactStore.CONTACTS_URI)
         cursor
     }.onFailure { Log.w(TAG, "读取加密联系人失败", it) }.getOrDefault(empty())
 
@@ -134,6 +135,7 @@ class PrivateContactsProvider : ContentProvider() {
                         .add(COL_STARRED, if (c.starred == 1) 1 else 0)
                         .add(COL_GROUPS, "")
                 }
+            cursor.setNotificationUri(context.contentResolver, PrivateContactStore.CONTACTS_URI)
             cursor
         } catch (e: Exception) {
             Log.w(TAG, "按号码查联系人失败", e)

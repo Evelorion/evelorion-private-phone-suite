@@ -176,7 +176,7 @@ class SyncSetupActivity : BaseActivity() {
 
     private fun value(field: Field) = fields[field]?.text?.toString()?.trim().orEmpty()
 
-    private fun submit() {
+    private fun submit(mfaCode: String? = null) {
         val server = value(Field.SERVER)
         val username = value(Field.USERNAME)
         val passphrase = value(Field.PASSPHRASE)
@@ -224,6 +224,7 @@ class SyncSetupActivity : BaseActivity() {
                             deviceName = deviceName,
                             cacheOnDevice = true,
                             requireScreenLock = false,
+                            mfaCode = mfaCode,
                         )
                         null
                     }
@@ -236,6 +237,7 @@ class SyncSetupActivity : BaseActivity() {
                             deviceName = deviceName,
                             cacheOnDevice = true,
                             requireScreenLock = false,
+                            mfaCode = mfaCode,
                         )
                         runOnUiThread {
                             if (mustReset) toast(getString(R.string.sync_recovered_set_new_pass))
@@ -256,10 +258,44 @@ class SyncSetupActivity : BaseActivity() {
             }.onFailure { e ->
                 runOnUiThread {
                     binding.submitLabel.setText(MODES.first { it.first == mode }.second)
-                    toast(describe(e))
+                    if (e is VaultManager.MfaRequired) {
+                        showMfaDialog(e.methods, e.requireAll)
+                    } else {
+                        toast(describe(e))
+                    }
                 }
             }
         }
+    }
+
+    private fun showMfaDialog(methods: List<String>, requireAll: Boolean) {
+        if (requireAll && "passkey" in methods) {
+            toast("这个账号要求同时验证通行密钥，请先使用网页端登录")
+            return
+        }
+        val supportsCode = methods.isEmpty() || methods.any { it == "totp" || it == "backup" }
+        if (!supportsCode) {
+            toast("这个账号只启用了通行密钥，请先在网页端生成备用码")
+            return
+        }
+
+        val input = EditText(this).apply {
+            hint = "6 位验证码或备用码"
+            inputType = android.text.InputType.TYPE_CLASS_TEXT
+            setSingleLine(true)
+            val padding = (24 * resources.displayMetrics.density).toInt()
+            setPadding(padding, padding / 2, padding, padding / 2)
+        }
+        MaterialAlertDialogBuilder(this)
+            .setTitle("两步验证")
+            .setMessage("输入验证器中的 6 位验证码，也可以使用一枚备用码。")
+            .setView(input)
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton("继续") { _, _ ->
+                val code = input.text?.toString().orEmpty().trim()
+                if (code.isBlank()) toast("请输入验证码") else submit(code)
+            }
+            .show()
     }
 
     // ------------------------------------------------------------------ 状态
