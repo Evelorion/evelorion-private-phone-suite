@@ -14,6 +14,13 @@ import android.widget.Toast
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import androidx.core.content.getSystemService
+import androidx.credentials.CredentialManager
+import androidx.credentials.GetCredentialRequest
+import androidx.credentials.GetPublicKeyCredentialOption
+import androidx.credentials.PublicKeyCredential
+import androidx.credentials.exceptions.GetCredentialCancellationException
+import androidx.credentials.exceptions.NoCredentialException
+import androidx.lifecycle.lifecycleScope
 import com.evelorion.contacts.R
 import com.evelorion.contacts.data.ContactRepository
 import com.evelorion.contacts.databinding.ActivitySyncSetupBinding
@@ -34,6 +41,9 @@ import org.json.JSONObject
 import java.io.IOException
 import java.net.URI
 import java.util.concurrent.Executors
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * 加密同步的配置与状态页。
@@ -259,7 +269,7 @@ class SyncSetupActivity : BaseActivity() {
                 runOnUiThread {
                     binding.submitLabel.setText(MODES.first { it.first == mode }.second)
                     if (e is VaultManager.MfaRequired) {
-                        showMfaDialog(e.methods, e.requireAll)
+                        handleMfa(e)
                     } else {
                         toast(describe(e))
                     }
@@ -268,17 +278,19 @@ class SyncSetupActivity : BaseActivity() {
         }
     }
 
-    private fun showMfaDialog(methods: List<String>, requireAll: Boolean) {
-        if (requireAll && "passkey" in methods) {
-            toast("这个账号要求同时验证通行密钥，请先使用网页端登录")
-            return
+    private fun handleMfa(challenge: VaultManager.MfaRequired) {
+        val hasPasskey = "passkey" in challenge.methods
+        val needsCodeToo = challenge.requireAll && "totp" in challenge.methods
+        when {
+            hasPasskey && needsCodeToo -> showMfaCodeDialog { code ->
+                startPasskey(challenge, code)
+            }
+            hasPasskey -> startPasskey(challenge, null)
+            else -> showMfaCodeDialog { code -> submit(code) }
         }
-        val supportsCode = methods.isEmpty() || methods.any { it == "totp" || it == "backup" }
-        if (!supportsCode) {
-            toast("这个账号只启用了通行密钥，请先在网页端生成备用码")
-            return
-        }
+    }
 
+    private fun showMfaCodeDialog(onCode: (String) -> Unit) {
         val input = EditText(this).apply {
             hint = "6 位验证码或备用码"
             inputType = android.text.InputType.TYPE_CLASS_TEXT
@@ -293,9 +305,79 @@ class SyncSetupActivity : BaseActivity() {
             .setNegativeButton(android.R.string.cancel, null)
             .setPositiveButton("继续") { _, _ ->
                 val code = input.text?.toString().orEmpty().trim()
-                if (code.isBlank()) toast("请输入验证码") else submit(code)
+                if (code.isBlank()) toast("请输入验证码") else onCode(code)
             }
             .show()
+    }
+
+    private fun startPasskey(challenge: VaultManager.MfaRequired, mfaCode: String?) {
+        val server = value(Field.SERVER).trimEnd('/')
+        val username = value(Field.USERNAME)
+        val passphrase = value(Field.PASSPHRASE)
+        val recovery = value(Field.RECOVERY)
+        val activeMode = mode
+
+        binding.submitLabel.setText(R.string.sync_working)
+        lifecycleScope.launch {
+            try {
+                val requestJson = withContext(Dispatchers.IO) {
+                    vault.passkeyRequestJson(server, challenge.token)
+                }
+                val request = GetCredentialRequest(
+                    listOf(GetPublicKeyCredentialOption(requestJson))
+                )
+                val credential = CredentialManager.create(this@SyncSetupActivity)
+                    .getCredential(this@SyncSetupActivity, request)
+                    .credential as? PublicKeyCredential
+                    ?: throw IllegalStateException("系统没有返回通行密钥")
+
+                val mustReset = withContext(Dispatchers.IO) {
+                    when (activeMode) {
+                        Mode.LOGIN -> {
+                            vault.completePasskeyLogin(
+                                baseUrl = server,
+                                username = username,
+                                passphrase = passphrase,
+                                mfaToken = challenge.token,
+                                passkeyResponseJson = credential.authenticationResponseJson,
+                                mfaCode = mfaCode,
+                                cacheOnDevice = true,
+                                requireScreenLock = false,
+                            )
+                            false
+                        }
+                        Mode.RECOVER -> vault.completePasskeyRecovery(
+                            baseUrl = server,
+                            username = username,
+                            recoveryCode = recovery,
+                            mfaToken = challenge.token,
+                            passkeyResponseJson = credential.authenticationResponseJson,
+                            mfaCode = mfaCode,
+                            cacheOnDevice = true,
+                            requireScreenLock = false,
+                        )
+                        Mode.REGISTER -> false
+                    }
+                }
+
+                if (mustReset) toast(getString(R.string.sync_recovered_set_new_pass))
+                render()
+                SyncScheduler.schedulePeriodic(this@SyncSetupActivity)
+                runSync()
+            } catch (_: GetCredentialCancellationException) {
+                binding.submitLabel.setText(MODES.first { it.first == mode }.second)
+            } catch (e: NoCredentialException) {
+                binding.submitLabel.setText(MODES.first { it.first == mode }.second)
+                if ("backup" in challenge.methods || "totp" in challenge.methods) {
+                    showMfaCodeDialog { code -> submit(code) }
+                } else {
+                    toast("这台设备没有可用的通行密钥")
+                }
+            } catch (e: Exception) {
+                binding.submitLabel.setText(MODES.first { it.first == mode }.second)
+                toast(describe(e))
+            }
+        }
     }
 
     // ------------------------------------------------------------------ 状态

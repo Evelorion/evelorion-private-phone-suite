@@ -103,6 +103,8 @@ dependencies {
     implementation(libs.androidx.activity)
     implementation(libs.androidx.lifecycle.runtime)
     implementation(libs.androidx.lifecycle.viewmodel)
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services)
 
     // 数据层。**只用它读写系统通讯录和做 vCard**，
     // 它的 Activity、View、主题一概不碰 —— 那正是上一版 UI 做不出来的原因。

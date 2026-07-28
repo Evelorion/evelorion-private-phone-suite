@@ -51,6 +51,8 @@ import {
  */
 
 const CHALLENGE_TTL_MS = 5 * 60_000;
+const ANDROID_APP_ORIGIN =
+  'android:apk-key-hash:Qu7HfrRfsASrdPTtUVsvbn3Ji8T6oFGthgODF9UwXfA';
 
 type MfaSettings = {
   account_id: string;
@@ -71,6 +73,8 @@ type PasskeyRow = {
   last_used_at: number | null;
 };
 
+type MfaMethod = 'totp' | 'passkey' | 'backup';
+
 /**
  * WebAuthn 的 Relying Party 标识。
  *
@@ -84,6 +88,7 @@ function rpConfig() {
     rpID: url.hostname,
     rpName: 'Contacts Sync',
     origin: url.origin,
+    authenticationOrigins: [url.origin, ANDROID_APP_ORIGIN],
   };
 }
 
@@ -130,6 +135,16 @@ function hashBackupCode(code: string): string {
   // 恢复码本身熵足够（40 位），不需要 Argon2 那种慢哈希 ——
   // 慢哈希是给低熵口令用的，这里用 SHA-256 就够，而且验证快
   return createHash('sha256').update(code.replace(/[\s-]/g, '').toUpperCase()).digest('hex');
+}
+
+function replaceBackupCodes(accountId: string): string[] {
+  const codes = generateBackupCodes();
+  db.transaction(() => {
+    db.prepare('DELETE FROM mfa_backup_codes WHERE account_id = ?').run(accountId);
+    const insert = db.prepare('INSERT INTO mfa_backup_codes (account_id, code_hash) VALUES (?, ?)');
+    codes.forEach((code) => insert.run(accountId, hashBackupCode(code)));
+  })();
+  return codes;
 }
 
 function newChallenge(
@@ -183,8 +198,8 @@ function takeChallenge(token: string, purpose: 'register' | 'login') {
 export async function verifyMfa(
   accountId: string,
   input: { totpCode?: string; backupCode?: string; passkey?: unknown; challenge?: string }
-): Promise<Set<'totp' | 'passkey'>> {
-  const passed = new Set<'totp' | 'passkey'>();
+): Promise<Set<MfaMethod>> {
+  const passed = new Set<MfaMethod>();
 
   if (input.totpCode) {
     const row = db
@@ -193,8 +208,8 @@ export async function verifyMfa(
     if (row && verifyCode(row.secret, input.totpCode)) passed.add('totp');
   }
 
-  // 恢复码算作 TOTP 那一档通过 —— 它本来就是「认证器丢了」的替代品
-  if (!passed.has('totp') && input.backupCode) {
+  // 备用码是整个 MFA 的应急入口，不依附于 TOTP。通行密钥丢失时也必须能用。
+  if (input.backupCode) {
     const hash = hashBackupCode(input.backupCode);
     const row = db
       .prepare('SELECT code_hash FROM mfa_backup_codes WHERE account_id = ? AND code_hash = ? AND used_at IS NULL')
@@ -202,12 +217,12 @@ export async function verifyMfa(
     if (row) {
       // 用完立刻删。标记 used_at 而不删的话，从备份里翻出旧库就能再用一遍
       db.prepare('DELETE FROM mfa_backup_codes WHERE account_id = ? AND code_hash = ?').run(accountId, hash);
-      passed.add('totp');
+      passed.add('backup');
     }
   }
 
   if (input.passkey && input.challenge) {
-    const { rpID, origin } = rpConfig();
+    const { rpID, authenticationOrigins } = rpConfig();
     const response = input.passkey as { id?: string };
     const cred = db
       .prepare('SELECT * FROM mfa_passkeys WHERE account_id = ? AND credential_id = ?')
@@ -217,7 +232,7 @@ export async function verifyMfa(
       const verification = await verifyAuthenticationResponse({
         response: input.passkey as never,
         expectedChallenge: input.challenge,
-        expectedOrigin: origin,
+        expectedOrigin: authenticationOrigins,
         expectedRPID: rpID,
         credential: {
           id: cred.credential_id,
@@ -245,7 +260,8 @@ export async function verifyMfa(
 }
 
 /** 判断通过的方式够不够。 */
-export function mfaSatisfied(accountId: string, passed: Set<'totp' | 'passkey'>): boolean {
+export function mfaSatisfied(accountId: string, passed: Set<MfaMethod>): boolean {
+  if (passed.has('backup')) return true;
   const s = getMfaSettings(accountId);
   const need: ('totp' | 'passkey')[] = [];
   if (s.totp_enabled) need.push('totp');
@@ -259,6 +275,10 @@ export function mfaMethods(accountId: string): string[] {
   const out: string[] = [];
   if (s.totp_enabled) out.push('totp');
   if (s.passkey_enabled) out.push('passkey');
+  const backup = db
+    .prepare('SELECT 1 FROM mfa_backup_codes WHERE account_id = ? LIMIT 1')
+    .get(accountId);
+  if (backup) out.push('backup');
   return out;
 }
 
@@ -300,6 +320,14 @@ export function registerMfaRoutes(app: FastifyInstance): void {
       passkeys,
       backupCodesLeft: backupLeft.n,
     };
+  });
+
+  app.post('/v1/mfa/backup/regenerate', async (req) => {
+    const auth = requireAuth(req);
+    if (!mfaRequired(auth.accountId)) {
+      throw new HttpError(400, 'mfa_not_enabled', '请先启用验证器或通行密钥');
+    }
+    return { ok: true, backupCodes: replaceBackupCodes(auth.accountId) };
   });
 
   app.post('/v1/mfa/settings', async (req) => {
@@ -355,13 +383,7 @@ export function registerMfaRoutes(app: FastifyInstance): void {
     db.prepare('UPDATE mfa_totp SET confirmed_at = ? WHERE account_id = ?').run(Date.now(), auth.accountId);
     upsertSettings(auth.accountId, { totp_enabled: 1 });
 
-    // 生成一批恢复码，替换掉旧的
-    const codes = generateBackupCodes();
-    db.prepare('DELETE FROM mfa_backup_codes WHERE account_id = ?').run(auth.accountId);
-    const insert = db.prepare('INSERT INTO mfa_backup_codes (account_id, code_hash) VALUES (?, ?)');
-    db.transaction(() => codes.forEach((c) => insert.run(auth.accountId, hashBackupCode(c))))();
-
-    return { ok: true, backupCodes: codes };
+    return { ok: true, backupCodes: replaceBackupCodes(auth.accountId) };
   });
 
   app.post('/v1/mfa/totp/disable', async (req) => {
@@ -506,4 +528,3 @@ export function registerMfaRoutes(app: FastifyInstance): void {
   });
 
 }
-

@@ -571,6 +571,11 @@ async function refreshMfa() {
 
     // 验证器开关。程序性地改 checked 不会触发 change，所以不用担心回环
     $('totpSwitch').checked = st.totpEnabled;
+    $('backupCodeStatus').textContent = st.backupCodesLeft
+      ? `还剩 ${st.backupCodesLeft} 个；重新生成会让旧码失效`
+      : '用于无法使用验证器或通行密钥时登录';
+    $('backupRegenerate').textContent = st.backupCodesLeft ? '重新生成' : '生成';
+    $('backupRegenerate').disabled = !(st.totpEnabled || st.passkeyEnabled);
 
     // 通行密钥列表
     $('passkeyList').innerHTML = st.passkeys.length
@@ -666,6 +671,19 @@ $('totpConfirm').onclick = async () => {
 $('copyBackup').onclick = async () => {
   await navigator.clipboard.writeText($('backupCodeList').textContent);
   toast('已复制');
+};
+
+$('backupRegenerate').onclick = async () => {
+  if (!confirm('生成新备用码后，之前的备用码会全部失效。继续吗？')) return;
+  try {
+    const res = await MFA.regenerateBackupCodes();
+    $('backupCodeList').textContent = res.backupCodes.join('   ');
+    $('backupCodes').classList.remove('hidden');
+    mfaMsg('新备用码已生成，请立即保存');
+    await refreshMfa();
+  } catch (e) {
+    mfaMsg(friendly(e), true);
+  }
 };
 
 $('passkeyAdd').onclick = async () => {

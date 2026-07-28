@@ -83,6 +83,9 @@ export const totpConfirm = (code) =>
 export const totpDisable = (code) =>
   userApi('/v1/mfa/totp/disable', { method: 'POST', body: { code } });
 
+export const regenerateBackupCodes = () =>
+  userApi('/v1/mfa/backup/regenerate', { method: 'POST' });
+
 export const removePasskey = (id) =>
   userApi(`/v1/mfa/passkey/${encodeURIComponent(id)}`, { method: 'DELETE' });
 

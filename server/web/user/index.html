@@ -188,13 +188,21 @@
 
           <!-- 恢复码，开启成功后显示一次 -->
           <div id="backupCodes" class="hidden" style="padding:14px;background:var(--bg);border-radius:8px;margin-bottom:6px">
-            <div class="row-title">恢复码</div>
+            <div class="row-title">备用码</div>
             <div class="row-desc" style="margin:4px 0 10px">
-              验证器丢了的时候用，每个只能用一次。<b>只显示这一次</b> ——
+              验证器或通行密钥不可用时使用，每个只能用一次。<b>只显示这一次</b> ——
               服务器上存的是哈希，找不回来。
             </div>
             <div class="code-block" id="backupCodeList" style="font-size:13px;line-height:2"></div>
             <div class="actions"><button id="copyBackup">复制</button></div>
+          </div>
+
+          <div class="switch-row">
+            <div class="row-text">
+              <div class="row-title">备用码</div>
+              <div class="row-desc" id="backupCodeStatus">用于无法使用验证器或通行密钥时登录</div>
+            </div>
+            <button id="backupRegenerate">生成</button>
           </div>
 
           <!-- ─── 通行密钥 ─── -->

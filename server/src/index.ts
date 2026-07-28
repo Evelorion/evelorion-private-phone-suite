@@ -73,8 +73,8 @@ await app.register(fastifyStatic, {
   root: webRoot,
   prefix: '/',
   index: ['index.html'],
-  setHeaders(res) {
-    res.setHeader(
+  setHeaders(reply) {
+    reply.header(
       'Content-Security-Policy',
       [
         "default-src 'self'",
@@ -87,9 +87,9 @@ await app.register(fastifyStatic, {
         "form-action 'none'",
       ].join('; ')
     );
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('Referrer-Policy', 'no-referrer');
-    res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+    reply.header('X-Content-Type-Options', 'nosniff');
+    reply.header('Referrer-Policy', 'no-referrer');
+    reply.header('Cross-Origin-Opener-Policy', 'same-origin');
   },
 });
 

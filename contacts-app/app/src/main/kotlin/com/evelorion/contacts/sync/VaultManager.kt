@@ -25,6 +25,7 @@ class VaultManager private constructor(private val context: Context) {
     class MfaRequired(
         val methods: List<String>,
         val requireAll: Boolean,
+        val token: String,
     ) : Exception("需要两步验证码")
 
     companion object {
@@ -207,6 +208,104 @@ class VaultManager private constructor(private val context: Context) {
         }
     }
 
+    fun passkeyRequestJson(baseUrl: String, mfaToken: String): String {
+        session.validateUrl(baseUrl)?.let { throw IllegalArgumentException(it) }
+        session.baseUrl = baseUrl
+        return SyncApi(baseUrl, session).getMfaOptions(mfaToken).toString()
+    }
+
+    fun completePasskeyLogin(
+        baseUrl: String,
+        username: String,
+        passphrase: String,
+        mfaToken: String,
+        passkeyResponseJson: String,
+        mfaCode: String?,
+        cacheOnDevice: Boolean,
+        requireScreenLock: Boolean,
+    ) {
+        session.validateUrl(baseUrl)?.let { throw IllegalArgumentException(it) }
+        session.baseUrl = baseUrl
+
+        val api = SyncApi(baseUrl, session)
+        val kdf = api.getKdfParams(username)
+        val salt = Base64.decode(kdf.getString("salt"), Base64.NO_WRAP)
+        val masterKey = VaultCrypto.deriveMasterKey(
+            passphrase, salt,
+            kdf.optInt("memoryKiB", VaultCrypto.KDF_MEMORY_KIB),
+            kdf.optInt("iterations", VaultCrypto.KDF_ITERATIONS),
+            kdf.optInt("parallelism", VaultCrypto.KDF_PARALLELISM),
+        )
+        try {
+            val response = api.completeMfa(
+                mfaToken,
+                JSONObject(passkeyResponseJson),
+                mfaCode,
+            )
+            persistSession(username, response)
+            val kek = VaultCrypto.deriveKek(masterKey, salt)
+            try {
+                setDek(
+                    VaultCrypto.unwrapDek(
+                        kek,
+                        Base64.decode(response.getString("dekWrapPassword"), Base64.NO_WRAP),
+                        forRecovery = false,
+                    ),
+                    cacheOnDevice,
+                    requireScreenLock,
+                )
+            } finally {
+                Crypto.wipe(kek)
+            }
+        } finally {
+            Crypto.wipe(masterKey)
+        }
+    }
+
+    fun completePasskeyRecovery(
+        baseUrl: String,
+        username: String,
+        recoveryCode: String,
+        mfaToken: String,
+        passkeyResponseJson: String,
+        mfaCode: String?,
+        cacheOnDevice: Boolean,
+        requireScreenLock: Boolean,
+    ): Boolean {
+        session.validateUrl(baseUrl)?.let { throw IllegalArgumentException(it) }
+        session.baseUrl = baseUrl
+
+        val recoveryKey = RecoveryCode.parse(recoveryCode)
+        val api = SyncApi(baseUrl, session)
+        val kdf = api.getKdfParams(username)
+        val salt = Base64.decode(kdf.getString("salt"), Base64.NO_WRAP)
+        try {
+            val response = api.completeMfa(
+                mfaToken,
+                JSONObject(passkeyResponseJson),
+                mfaCode,
+            )
+            persistSession(username, response)
+            val rkek = VaultCrypto.deriveRecoveryKek(recoveryKey, salt)
+            try {
+                setDek(
+                    VaultCrypto.unwrapDek(
+                        rkek,
+                        Base64.decode(response.getString("dekWrapRecovery"), Base64.NO_WRAP),
+                        forRecovery = true,
+                    ),
+                    cacheOnDevice,
+                    requireScreenLock,
+                )
+            } finally {
+                Crypto.wipe(rkek)
+            }
+            return response.optBoolean("mustResetPassphrase", true)
+        } finally {
+            Crypto.wipe(recoveryKey)
+        }
+    }
+
     // ---------------------------------------------------------------- 解锁
 
     /**
@@ -371,12 +470,11 @@ class VaultManager private constructor(private val context: Context) {
                 methodsJson.optString(index).takeIf { it.isNotBlank() }
             }
         }
-        if (mfaCode.isNullOrBlank()) {
-            throw MfaRequired(methods, response.optBoolean("requireAll", false))
-        }
-
         val token = response.optString("mfaToken")
         if (token.isBlank()) throw IllegalStateException("服务器未返回两步验证令牌")
+        if (mfaCode.isNullOrBlank()) {
+            throw MfaRequired(methods, response.optBoolean("requireAll", false), token)
+        }
         return api.completeMfa(token, mfaCode)
     }
 

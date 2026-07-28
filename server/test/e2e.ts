@@ -8,6 +8,7 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { readFileSync, rmSync, mkdirSync } from 'node:fs';
+import Database from 'better-sqlite3';
 import * as C from './client.ts';
 import { threeWayMerge, sameContact, type Contact } from './merge.ts';
 import { MANIFEST_UUID, MAX_ENTRIES, encodeManifest, decodeManifest, verifyManifest } from './manifest.ts';
@@ -753,6 +754,72 @@ async function main(): Promise<void> {
 
       check('别人的回收站看不到',
         !((await api('/v1/sync/trash', { token: tokenB })).items ?? []).some((i: any) => i.uuid === idTrash));
+    }
+
+    // ---------------------------------------------------------------
+    console.log('\n[MFA] 通行密钥账户使用备用码');
+    {
+      // WebAuthn 本身由浏览器完成，这里直接建立“只启用通行密钥”的账户状态，
+      // 验证服务端备用码的生成、登录、一次性和轮换语义。
+      const sqlite = new Database(DB);
+      const account = sqlite.prepare('SELECT id FROM accounts WHERE username = ?').get('miko') as
+        { id: string };
+      sqlite.prepare(
+        `INSERT INTO mfa_settings (account_id, totp_enabled, passkey_enabled, require_all, updated_at)
+         VALUES (?, 0, 1, 0, ?)
+         ON CONFLICT(account_id) DO UPDATE SET
+           totp_enabled = 0, passkey_enabled = 1, require_all = 0, updated_at = excluded.updated_at`
+      ).run(account.id, Date.now());
+      sqlite.close();
+
+      const generated = await api('/v1/mfa/backup/regenerate', {
+        method: 'POST', token: tokenA,
+      });
+      check('通行密钥账户可以生成备用码',
+        generated.backupCodes?.length === 8);
+
+      const startLogin = () => api('/v1/session', {
+        method: 'POST',
+        body: JSON.stringify({
+          username: 'miko',
+          authSecret: C.deriveAuthSecret(newMk, newSalt),
+          deviceName: 'Android',
+        }),
+      });
+      const first = await startLogin();
+      check('登录响应会告诉 Android 可以使用备用码',
+        first.mfaRequired === true && first.methods?.includes('backup'));
+
+      const completed = await api('/v1/session/mfa/complete', {
+        method: 'POST',
+        body: JSON.stringify({ mfaToken: first.mfaToken, backupCode: generated.backupCodes[0] }),
+      });
+      check('备用码可以完成通行密钥账户登录',
+        typeof completed.accessToken === 'string');
+
+      const replayStart = await startLogin();
+      const replay = await api('/v1/session/mfa/complete', {
+        method: 'POST',
+        body: JSON.stringify({ mfaToken: replayStart.mfaToken, backupCode: generated.backupCodes[0] }),
+      });
+      check('备用码只能使用一次', replay.__status === 401);
+
+      const regenerated = await api('/v1/mfa/backup/regenerate', {
+        method: 'POST', token: completed.accessToken,
+      });
+      const oldStart = await startLogin();
+      const oldCode = await api('/v1/session/mfa/complete', {
+        method: 'POST',
+        body: JSON.stringify({ mfaToken: oldStart.mfaToken, backupCode: generated.backupCodes[1] }),
+      });
+      check('重新生成后旧备用码全部失效', oldCode.__status === 401);
+
+      const newStart = await startLogin();
+      const newCode = await api('/v1/session/mfa/complete', {
+        method: 'POST',
+        body: JSON.stringify({ mfaToken: newStart.mfaToken, backupCode: regenerated.backupCodes[0] }),
+      });
+      check('重新生成的新备用码可以登录', typeof newCode.accessToken === 'string');
     }
 
   } finally {
