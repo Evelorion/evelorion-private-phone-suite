@@ -113,8 +113,10 @@ docker compose exec sync npm run admin:create -- YOUR_ADMIN_NAME
 ```bash
 cd /opt/contacts-sync
 mkdir -p backups
-docker compose exec -T sync sh -c \
-  'sqlite3 /app/data/sync.db ".backup /app/data/sync-before-update.db"'
+docker compose exec -T sync node --input-type=module -e \
+  "import Database from 'better-sqlite3'; const db=new Database('/app/data/sync.db'); await db.backup('/app/data/sync-before-update.db'); db.close()"
+docker compose cp sync:/app/data/sync-before-update.db backups/sync-before-update.db
+docker compose exec -T sync rm -f /app/data/sync-before-update.db
 docker compose build --pull
 docker compose up -d
 docker compose ps
@@ -140,8 +142,8 @@ set -euo pipefail
 cd /opt/contacts-sync
 mkdir -p backups
 stamp="$(date +%Y%m%d-%H%M%S)"
-docker compose exec -T sync sh -c \
-  "sqlite3 /app/data/sync.db '.backup /app/data/sync-${stamp}.db'"
+docker compose exec -T sync node --input-type=module -e \
+  "import Database from 'better-sqlite3'; const db=new Database('/app/data/sync.db'); await db.backup('/app/data/sync-${stamp}.db'); db.close()"
 docker compose cp "sync:/app/data/sync-${stamp}.db" "backups/sync-${stamp}.db"
 docker compose exec -T sync rm -f "/app/data/sync-${stamp}.db"
 find backups -type f -name 'sync-*.db' -mtime +30 -delete
