@@ -29,6 +29,10 @@ import com.evelorion.contacts.ui.theme.themeColor
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.R as MaterialR
 import com.evelorion.contacts.ui.Bg
+import okhttp3.HttpUrl.Companion.toHttpUrl
+import org.json.JSONObject
+import java.io.IOException
+import java.net.URI
 import java.util.concurrent.Executors
 
 /**
@@ -194,9 +198,13 @@ class SyncSetupActivity : BaseActivity() {
 
         io.execute {
             runCatching {
+                val resolvedServer = resolveServer(server).baseUrl
+                if (resolvedServer != server.trimEnd('/')) {
+                    runOnUiThread { fields[Field.SERVER]?.setText(resolvedServer) }
+                }
                 when (mode) {
                     Mode.REGISTER -> vault.register(
-                        baseUrl = server,
+                        baseUrl = resolvedServer,
                         username = username,
                         passphrase = passphrase,
                         registrationToken = invite,
@@ -210,7 +218,7 @@ class SyncSetupActivity : BaseActivity() {
 
                     Mode.LOGIN -> {
                         vault.login(
-                            baseUrl = server,
+                            baseUrl = resolvedServer,
                             username = username,
                             passphrase = passphrase,
                             deviceName = deviceName,
@@ -222,7 +230,7 @@ class SyncSetupActivity : BaseActivity() {
 
                     Mode.RECOVER -> {
                         val mustReset = vault.loginWithRecoveryCode(
-                            baseUrl = server,
+                            baseUrl = resolvedServer,
                             username = username,
                             recoveryCode = recovery,
                             deviceName = deviceName,
@@ -445,25 +453,63 @@ class SyncSetupActivity : BaseActivity() {
 
         binding.testConnection.setText(R.string.sync_testing)
         io.execute {
-            val result = runCatching {
-                val client = okhttp3.OkHttpClient.Builder()
-                    .connectTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
-                    .readTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
-                    .build()
-                val req = okhttp3.Request.Builder()
-                    .url(server.trimEnd('/') + "/v1/health")
-                    .get().build()
-                client.newCall(req).execute().use { r ->
-                    "${r.code} ${r.body?.string()?.take(120).orEmpty()}"
-                }
-            }
+            val result = runCatching { resolveServer(server) }
             runOnUiThread {
                 if (isFinishing || isDestroyed) return@runOnUiThread
                 binding.testConnection.setText(R.string.sync_test_connection)
-                result.onSuccess { toast(getString(R.string.sync_test_ok, it)) }
+                result.onSuccess {
+                    fields[Field.SERVER]?.setText(it.baseUrl)
+                    toast(getString(R.string.sync_test_ok, it.summary))
+                }
                     .onFailure { toast(getString(R.string.sync_test_failed, describe(it))) }
             }
         }
+    }
+
+    private data class ServerProbe(val baseUrl: String, val summary: String)
+
+    /**
+     * Standard HTTPS is tried first. Self-hosted installations that expose the
+     * sync service on 8443 remain discoverable without baking a private host
+     * name into the app or repository.
+     */
+    private fun resolveServer(input: String): ServerProbe {
+        val client = okhttp3.OkHttpClient.Builder()
+            .connectTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
+            .build()
+        var lastFailure: Throwable? = null
+
+        serverCandidates(input).forEach { candidate ->
+            try {
+                val request = okhttp3.Request.Builder()
+                    .url("$candidate/v1/health")
+                    .get()
+                    .build()
+                client.newCall(request).execute().use { response ->
+                    val body = response.body?.string().orEmpty()
+                    val healthy = response.isSuccessful &&
+                        runCatching { JSONObject(body).optBoolean("ok", false) }.getOrDefault(false)
+                    if (healthy) return ServerProbe(candidate, "${response.code} OK")
+                    lastFailure = IOException("HTTP ${response.code}")
+                }
+            } catch (e: IOException) {
+                lastFailure = e
+            }
+        }
+
+        throw lastFailure ?: IOException("服务器健康检查失败")
+    }
+
+    private fun serverCandidates(input: String): List<String> {
+        val normalized = input.trim().trimEnd('/')
+        val uri = runCatching { URI(normalized) }.getOrNull()
+        if (uri?.port != -1) return listOf(normalized)
+
+        val fallback = runCatching {
+            normalized.toHttpUrl().newBuilder().port(8443).build().toString().trimEnd('/')
+        }.getOrNull()
+        return listOfNotNull(normalized, fallback).distinct()
     }
 
     private fun LinearLayout.children(): List<View> = (0 until childCount).map { getChildAt(it) }
