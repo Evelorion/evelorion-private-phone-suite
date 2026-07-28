@@ -13,7 +13,7 @@
 
 ### 电话 App
 
-![Evelorion Phone 拨号盘](screenshots/phone-app.png)
+![Evelorion Phone 主界面](screenshots/phone-app.png)
 
 ### 通讯录 App
 
