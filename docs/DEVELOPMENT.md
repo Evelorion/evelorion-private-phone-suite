@@ -143,7 +143,7 @@ push 会改写清单，先推就等于用新清单盖掉了本轮该检查的那
 # 本地先测
 cd server && npm run test:e2e
 
-# 只把服务器后端目录同步到 VPS，不上传 Android 源码或签名材料
+# 只把 server 目录同步到 VPS，不上传 Android 源码或签名材料
 rsync -av --delete --exclude='.env' ./ deploy@YOUR_SERVER_IP:/opt/contacts-sync/
 
 # 重建并重启

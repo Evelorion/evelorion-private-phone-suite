@@ -17,7 +17,7 @@
 | 查某个接口的请求响应长什么样 | [API.md](API.md) |
 | 网页版（用户端 + 管理后台） | [WEB.md](WEB.md) |
 | 服务器怎么部署的、日常怎么维护 | [DEPLOYMENT.md](DEPLOYMENT.md) |
-| 把代码合进两个仓库 | [../android/INTEGRATION.md](../android/INTEGRATION.md) |
+| Android 工程说明 | [../开发指南.md](../开发指南.md) |
 | 本地数据库加密的三种模式 | [LOCAL_DB_ENCRYPTION.md](LOCAL_DB_ENCRYPTION.md) |
 | 通话记录怎么从系统里拿走的 | [CALL_LOG_PROTECTION.md](CALL_LOG_PROTECTION.md) |
 
@@ -29,7 +29,7 @@
 ## 五分钟跑起来
 
 ```bash
-cd 服务器后端
+cd server
 npm install
 npm run test:e2e        # 131 项断言，包含「数据库文件里搜不到明文」
 npm run test:web        # 25 项，浏览器端密码学交叉校验

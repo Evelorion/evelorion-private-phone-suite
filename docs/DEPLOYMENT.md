@@ -1,7 +1,7 @@
 # 云端部署指南
 
 这份文档只使用示例地址，不包含任何真实服务器、域名、账号或密钥。
-Android APK 必须在本机构建；VPS 只运行 `服务器后端`。
+Android APK 必须在本机构建；VPS 只运行 `server`。
 
 ## 1. 准备条件
 
@@ -40,14 +40,14 @@ cd /opt/contacts-sync
 git clone --filter=blob:none --no-checkout YOUR_PRIVATE_REPOSITORY_URL repo
 cd repo
 git sparse-checkout init --cone
-git sparse-checkout set 服务器后端
+git sparse-checkout set server
 git checkout main
-cp -a 服务器后端/. /opt/contacts-sync/
+cp -a server/. /opt/contacts-sync/
 cd /opt/contacts-sync
 rm -rf repo
 ```
 
-也可以在本机只打包 `服务器后端` 目录，再通过 `scp` 上传；不要上传两个
+也可以在本机只打包 `server` 目录，再通过 `scp` 上传；不要上传两个
 Android 工程、签名证书或本机配置。
 
 ## 3. 创建环境变量
@@ -123,7 +123,7 @@ docker compose ps
 curl --fail https://你的域名/v1/health
 ```
 
-更新前应在本机的 `服务器后端` 目录运行：
+更新前应在本机的 `server` 目录运行：
 
 ```bash
 npm ci
