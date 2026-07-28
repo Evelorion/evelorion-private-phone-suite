@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>浏览器端密码学自检</title>
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<div class="wrap">
+  <h1>浏览器端密码学自检</h1>
+  <p class="sub">
+    拿 <span class="mono">server/test/vectors.expected.json</span> 里的标准答案，
+    逐条比对这个浏览器算出来的值。
+  </p>
+
+  <div class="note">
+    <b>什么时候该跑这个：</b>改过 <span class="mono">web/lib/crypto.js</span>、
+    换过 Argon2 的包、或者怀疑网页端和 App 之间数据解不开的时候。<br>
+    全绿说明这个浏览器和服务端、和两个 Android App 算的是同一套东西。
+  </div>
+
+  <div class="actions">
+    <button id="run" class="primary">开始</button>
+    <span id="summary" style="margin-left:12px"></span>
+  </div>
+
+  <div class="card tight" id="results" style="padding:0;margin-top:16px"></div>
+</div>
+
+<script type="module">
+import * as C from '/lib/crypto.js';
+import { threeWayMerge, sameContact } from '/lib/merge.js';
+
+const $ = (id) => document.getElementById(id);
+let pass = 0, fail = 0;
+
+function ck(name, ok, detail = '') {
+  ok ? pass++ : fail++;
+  const row = document.createElement('div');
+  row.className = 'item';
+  row.style.cursor = 'default';
+  const mark = document.createElement('span');
+  mark.textContent = ok ? '✓' : '✗';
+  mark.style.color = ok ? 'var(--accent)' : 'var(--danger)';
+  mark.style.width = '18px';
+  const label = document.createElement('div');
+  label.className = 'grow';
+  label.textContent = name;
+  if (!ok && detail) {
+    const d = document.createElement('div');
+    d.className = 'meta mono';
+    d.textContent = detail;
+    label.appendChild(d);
+  }
+  row.append(mark, label);
+  $('results').appendChild(row);
+}
+
+$('run').onclick = async () => {
+  pass = 0; fail = 0;
+  $('results').innerHTML = '';
+  $('summary').textContent = '运行中…';
+  $('run').disabled = true;
+
+  try {
+    const V = await (await fetch('/vendor/vectors.json')).json();
+    const salt = C.fromHex(V.saltHex);
+    const dek = C.fromHex(V.dekHex);
+    const recoveryKey = C.fromHex(V.recoveryKeyHex);
+    const uuid = V.uuid;
+
+    // ---- Argon2：最慢的一步，也是最容易和别的实现分叉的一步
+    const mk = await C.deriveMasterKey('correct horse battery staple', salt);
+    ck('Argon2id 主密钥', C.toHex(mk) === V.argon2id_masterKeyHex, C.toHex(mk));
+
+    // ---- HKDF 派生
+    ck('KEK', C.toHex(await C.deriveKek(mk, salt)) === V.kekHex);
+    ck('authSecret', (await C.deriveAuthSecret(mk, salt)) === V.authSecretHex);
+    ck('恢复码 KEK', C.toHex(await C.deriveRecoveryKek(recoveryKey, salt)) === V.recoveryKekHex);
+    ck('记录密钥', C.toHex(await C.deriveRecordKey(dek, uuid)) === V.recordKeyHex);
+    ck('盲索引密钥', C.toHex(await C.deriveIndexKey(dek, salt)) === V.indexKeyHex);
+    ck('collection 子密钥 (calls)',
+       C.toHex(await C.deriveCollectionKey(dek, salt, 'calls')) === V.collectionKey_calls);
+
+    // ---- AAD
+    ck('记录 AAD', C.toHex(C.recordAad(uuid, 7, 1)) === V.recordAadHex, C.toHex(C.recordAad(uuid, 7, 1)));
+
+    // ---- 盲索引与 blob id
+    const idxKey = await C.deriveIndexKey(dek, salt);
+    ck('盲索引值', C.toHex(await C.hmacSha256(idxKey, new TextEncoder().encode('+8613800138000'))).slice(0, 32)
+       === V.blindIndex_plus8613800138000);
+    ck('blob id', (await C.blobId(dek, new TextEncoder().encode('AAAA'))) === V.blobIdOfAAAA);
+
+    // ---- 条目 id
+    ck('itemId(phones)', (await C.itemId('phones', '+8613800138000')) === V.itemId_phones_e164);
+    ck('itemId(groups, 中文)', (await C.itemId('groups', '家人')) === V.itemId_groups_family);
+
+    // ---- 恢复码
+    ck('恢复码格式', (await C.formatRecoveryCode(recoveryKey)) === V.recoveryCode);
+    const parsed = await C.parseRecoveryCode(V.recoveryCode);
+    ck('恢复码往返', C.equals(parsed, recoveryKey));
+    const messy = V.recoveryCode.toLowerCase().replace(/-/g, ' ');
+    ck('恢复码容错（小写+空格）', C.equals(await C.parseRecoveryCode(messy), recoveryKey));
+    let caught = false;
+    try { await C.parseRecoveryCode(V.recoveryCode.replace(/^./, (c) => (c === '0' ? '1' : '0'))); }
+    catch { caught = true; }
+    ck('改一个字符被校验位挡下', caught);
+
+    // ---- canonical JSON
+    ck('canonical JSON', C.canonicalJson({ b: 1, a: [3, { z: null, y: 'x' }], starred: false }) === V.canonicalJson,
+       C.canonicalJson({ b: 1, a: [3, { z: null, y: 'x' }], starred: false }));
+
+    // ---- 填充
+    const padded = C.pad(new TextEncoder().encode('hello'));
+    ck('填充对齐到 256', padded.length === 256 && C.toHex(padded.slice(0, 8)) === '68656c6c6f800000');
+    let padOk = true;
+    for (const n of [0, 1, 5, 255, 256, 257, 1000]) {
+      const data = new Uint8Array(n).map((_, i) => i & 0xff);
+      if (!C.equals(C.unpad(C.pad(data)), data)) padOk = false;
+    }
+    ck('填充往返（多种长度）', padOk);
+
+    // ---- 清单
+    ck('清单编码', C.encodeManifest({
+      '11111111-2222-3333-4444-555555555555': 7,
+      '00000000-0000-4000-8000-000000000001': 1,
+    }) === V.manifest_twoEntries);
+    const m = { 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee': 3, '11111111-2222-3333-4444-555555555555': 9 };
+    ck('清单往返', JSON.stringify(C.decodeManifest(C.encodeManifest(m))) === JSON.stringify(
+      Object.fromEntries(Object.entries(m).sort())));
+    ck('清单能发现被藏的记录',
+      C.verifyManifest({ [uuid]: 3 }, 2, 2, {}).length === 1);
+    ck('清单能发现被回滚的记录',
+      C.verifyManifest({ [uuid]: 5 }, 2, 2, { [uuid]: 3 }).length === 1);
+
+    // ---- 端到端加解密
+    const contact = { v: 1, first: '张三', phones: [{ id: await C.itemId('phones', '+8613800138000'),
+      value: '+8613800138000', norm: '+8613800138000', type: 2, label: '' }] };
+    const enc = await C.encryptRecord(dek, uuid, 3, contact);
+    const dec = await C.decryptRecord(dek, uuid, 3, enc.nonce, enc.ciphertext);
+    ck('记录加解密往返', JSON.stringify(dec) === JSON.stringify(contact));
+    ck('密文长度对齐到 256 字节块', (C.fromB64(enc.ciphertext).length - 16) % 256 === 0);
+
+    let revFail = false;
+    try { await C.decryptRecord(dek, uuid, 4, enc.nonce, enc.ciphertext); } catch { revFail = true; }
+    ck('换了 rev 就解不开（防回滚）', revFail);
+
+    const tampered = C.fromB64(enc.ciphertext);
+    tampered[0] ^= 0xff;
+    let tamperFail = false;
+    try { await C.decryptRecord(dek, uuid, 3, enc.nonce, C.toB64(tampered)); } catch { tamperFail = true; }
+    ck('篡改被 GCM 标签发现', tamperFail);
+
+    // ---- 号码归一化
+    ck('号码归一化', ['+86 138 0013 8000', '+86-138-0013-8000', '+86(138)00138000']
+      .every((r) => C.normalizeNumber(r) === '+8613800138000'));
+
+    // ---- 三方合并
+    const base = { v: 1, first: '张三', company: '旧公司' };
+    const local = { ...base, first: '张三丰' };
+    const remote = { ...base, company: '新公司' };
+    const merged = threeWayMerge(base, local, remote);
+    ck('三方合并：两个改动都保留', merged.merged.first === '张三丰' && merged.merged.company === '新公司');
+    ck('三方合并：无误报冲突', merged.conflicts.length === 0);
+    ck('三方合并对称', sameContact(threeWayMerge(base, remote, local).merged, merged.merged));
+    ck('三方合并幂等', sameContact(threeWayMerge(merged.merged, merged.merged, merged.merged).merged, merged.merged));
+
+    const cl = { ...base, notes: '本机' }, cr = { ...base, notes: '远端' };
+    const clash = threeWayMerge(base, cl, cr);
+    ck('同字段双改被标记为冲突', clash.conflicts.includes('notes'));
+    ck('冲突裁决确定性', threeWayMerge(base, cr, cl).merged.notes === clash.merged.notes);
+
+    const pid = await C.itemId('phones', '+8613800138000');
+    const withPhone = { v: 1, phones: [{ id: pid, value: 'x' }] };
+    const deleted = { v: 1, phones: [] };
+    ck('本机删除不被远端旧副本复活',
+      (threeWayMerge(withPhone, deleted, withPhone).merged.phones ?? []).length === 0);
+
+  } catch (e) {
+    ck('自检过程本身出错', false, e.message);
+  }
+
+  $('run').disabled = false;
+  $('summary').textContent = `通过 ${pass} 项，失败 ${fail} 项`;
+  $('summary').style.color = fail === 0 ? 'var(--accent)' : 'var(--danger)';
+};
+</script>
+</body>
+</html>

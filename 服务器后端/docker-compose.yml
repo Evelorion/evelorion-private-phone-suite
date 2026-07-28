@@ -1,0 +1,27 @@
+services:
+  sync:
+    build: .
+    restart: unless-stopped
+    # 只绑到 127.0.0.1，TLS 交给前面的 caddy/nginx。
+    # 直接暴露到公网会让同步流量明文走 HTTP —— 虽然内容是密文，
+    # 但访问令牌会泄露。
+    ports:
+      - "127.0.0.1:8443:8443"
+    environment:
+      HOST: 0.0.0.0
+      PORT: 8443
+      DB_PATH: /app/data/sync.db
+      SERVER_SECRET: ${SERVER_SECRET:?请先在 .env 里设置 SERVER_SECRET}
+      REGISTRATION_TOKEN: ${REGISTRATION_TOKEN:-}
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:?请先在 .env 里设置 PUBLIC_ORIGIN}
+      TRUST_PROXY: "true"
+    volumes:
+      - sync-data:/app/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8443/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  sync-data:

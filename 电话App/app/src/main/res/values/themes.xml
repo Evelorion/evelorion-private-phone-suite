@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      Compose 自己画所有东西，这里只需要一个不带 ActionBar、
+      背景透明交给 Compose 的壳。
+      NoActionBar 很关键：留着系统 ActionBar 会在 Compose 内容上方多一条。
+    -->
+    <style name="Theme.PhoneM3" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+    </style>
+</resources>

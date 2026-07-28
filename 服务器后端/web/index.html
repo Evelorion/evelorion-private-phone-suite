@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>加密通讯录</title>
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<div class="wrap narrow" style="padding-top:56px">
+
+  <h1>加密通讯录</h1>
+  <p class="sub">联系人和通话记录加密后存在这台服务器上。服务器只有密文。</p>
+
+  <a href="/user/" style="text-decoration:none;color:inherit">
+    <div class="card" style="cursor:pointer">
+      <h3>我是用户</h3>
+      <p class="sub" style="margin:0">
+        用主口令登录，查看和编辑自己的联系人、管理设备、改口令。
+      </p>
+    </div>
+  </a>
+
+  <a href="/admin/" style="text-decoration:none;color:inherit">
+    <div class="card" style="cursor:pointer">
+      <h3>我是管理员</h3>
+      <p class="sub" style="margin:0">
+        管理账号、发邀请码、看服务器状态。<strong>看不到任何联系人内容。</strong>
+      </p>
+    </div>
+  </a>
+
+  <div class="warn">
+    <strong>用网页版之前请知道这件事。</strong><br>
+    这个页面的 JS 是服务器发给你的浏览器的。<b>如果服务器被攻破，它可以发一段偷口令的脚本</b>——
+    你看不出区别。手机 App 没有这个问题，因为代码是签过名装在本地的，服务器换不掉。<br><br>
+    这不是这套实现的缺陷，所有网页端的端到端加密都一样（Proton、Bitwarden 的网页版也是）。
+    建议日常用 App，网页版只在需要时用。
+  </div>
+
+  <p class="hint">
+    管理员看不到联系人内容不是功能没做——服务器上只有密文，解密密钥只存在用户的主口令里。
+    要让管理员能看，就得放弃端到端加密。
+  </p>
+
+</div>
+</body>
+</html>

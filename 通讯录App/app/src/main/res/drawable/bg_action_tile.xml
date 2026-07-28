@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 详情页的快捷动作（拨号/短信/邮件）64×56 圆角 20。 -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android" android:color="?attr/colorOnSecondaryContainer">
+    <item android:id="@android:id/mask">
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/detail_action_radius" />
+            <solid android:color="#FFFFFF" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/detail_action_radius" />
+            <solid android:color="?attr/colorSecondaryContainer" />
+        </shape>
+    </item>
+</ripple>

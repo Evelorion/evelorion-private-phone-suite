@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 底部导航选中项的胶囊，只在选中时出现。 -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_selected="true">
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/nav_pill_radius" />
+            <solid android:color="?attr/colorSecondaryContainer" />
+        </shape>
+    </item>
+    <item android:drawable="@android:color/transparent" />
+</selector>

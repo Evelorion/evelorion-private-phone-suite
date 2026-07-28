@@ -1,0 +1,303 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  加密同步设置页。
+
+  两种状态用同一个布局：
+    未配置 → 显示服务器地址 / 用户名 / 口令 / 邀请码 表单
+    已配置 → 显示账号状态卡 + 立即同步 + 退出登录
+
+  切换靠代码控制两块的可见性，不做两个 Activity —— 注册完直接原地变成
+  状态页，用户不会有「跳来跳去」的感觉。
+-->
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/colorSurface">
+
+    <View
+        android:id="@+id/status_bar_spacer"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <LinearLayout
+        android:id="@+id/top_bar"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="8dp"
+        android:paddingTop="6dp"
+        android:paddingEnd="8dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/status_bar_spacer">
+
+        <ImageView
+            android:id="@+id/back"
+            android:layout_width="@dimen/icon_button_size"
+            android:layout_height="@dimen/icon_button_size"
+            android:background="@drawable/bg_circle_ripple"
+            android:contentDescription="@string/action_back"
+            android:padding="12dp"
+            android:src="@drawable/ic_arrow_back"
+            app:tint="?attr/colorOnSurface" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:text="@string/settings_sync"
+            android:textAppearance="@style/Text.TitleLarge" />
+    </LinearLayout>
+
+    <ScrollView
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:clipToPadding="false"
+        android:paddingStart="@dimen/card_margin_horizontal"
+        android:paddingTop="8dp"
+        android:paddingEnd="@dimen/card_margin_horizontal"
+        android:paddingBottom="32dp"
+        android:scrollbars="none"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/top_bar">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- ═══════ 说明 ═══════ -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                android:lineSpacingExtra="4dp"
+                android:text="@string/sync_intro"
+                android:textAppearance="@style/Text.BodySmall"
+                android:textSize="14sp" />
+
+            <!-- ═══════ 未配置：表单 ═══════ -->
+            <LinearLayout
+                android:id="@+id/setup_form"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <LinearLayout
+                    android:id="@+id/fields_holder"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical" />
+
+                <!-- 注册 / 登录二选一。用两个 chip 而不是 Tab —— 
+                     Tab 会让人以为是两个页面，实际只是同一个表单多一个字段。 -->
+                <LinearLayout
+                    android:id="@+id/mode_chips"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="20dp"
+                    android:orientation="horizontal" />
+
+                <!-- 连通性自检。把「服务器不通」和「账号口令不对」分开 ——
+                     用户报「出错了」的时候第一步就该按这个。 -->
+                <TextView
+                    android:id="@+id/test_connection"
+                    android:text="@string/sync_test_connection"
+                    android:layout_width="match_parent"
+                    android:layout_height="44dp"
+                    android:layout_marginTop="16dp"
+                    android:background="@drawable/bg_tag"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:textColor="?attr/colorPrimary"
+                    android:textSize="14sp"
+                    tools:text="测试连接" />
+
+                <!-- 当前模式在做什么。三种模式看起来很像，
+                     不说清楚的话用户不知道「登录」其实就是恢复。 -->
+                <TextView
+                    android:id="@+id/mode_hint"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:lineSpacingExtra="3dp"
+                    android:textAppearance="@style/Text.BodySmall"
+                    android:textSize="13sp" />
+
+                <LinearLayout
+                    android:id="@+id/submit"
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/filled_button_height"
+                    android:layout_marginTop="24dp"
+                    android:background="@drawable/bg_filled_button"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/submit_label"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textColor="?attr/colorOnPrimary"
+                        android:textSize="16sp" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- ═══════ 已配置：状态 ═══════ -->
+            <LinearLayout
+                android:id="@+id/status_holder"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone"
+                tools:visibility="visible">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_card"
+                    android:orientation="vertical"
+                    android:padding="18dp">
+
+                    <TextView
+                        android:id="@+id/account"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:textAppearance="@style/Text.BodyLarge"
+                        tools:text="miko @ https://contacts.example.com" />
+
+                    <TextView
+                        android:id="@+id/last_sync"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:textAppearance="@style/Text.BodySmall"
+                        tools:text="上次同步 3 分钟前" />
+
+                    <TextView
+                        android:id="@+id/pending"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:textAppearance="@style/Text.BodySmall"
+                        tools:text="待上传 0 条" />
+
+                    <TextView
+                        android:id="@+id/warning"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:textColor="?attr/colorError"
+                        android:textSize="13sp"
+                        android:visibility="gone"
+                        tools:text="同步失败：连接超时"
+                        tools:visibility="visible" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/sync_now"
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/filled_button_height"
+                    android:layout_marginTop="16dp"
+                    android:background="@drawable/bg_filled_button"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:orientation="horizontal">
+
+                    <ImageView
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:importantForAccessibility="no"
+                        android:src="@drawable/ic_cloud_sync"
+                        app:tint="?attr/colorOnPrimary" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp"
+                        android:text="@string/sync_now"
+                        android:textColor="?attr/colorOnPrimary"
+                        android:textSize="16sp" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/sign_out"
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/filled_button_height"
+                    android:layout_marginTop="10dp"
+                    android:background="@drawable/bg_tag"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:text="@string/sync_sign_out"
+                    android:textColor="?attr/colorError"
+                    android:textSize="15sp" />
+            </LinearLayout>
+
+            <!-- 恢复码。注册成功后显示一次，用户必须抄下来。 -->
+            <LinearLayout
+                android:id="@+id/recovery_holder"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:background="@drawable/bg_card"
+                android:orientation="vertical"
+                android:padding="18dp"
+                android:visibility="gone">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/sync_recovery_title"
+                    android:textAppearance="@style/Text.SectionHeader" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:lineSpacingExtra="3dp"
+                    android:text="@string/sync_recovery_desc"
+                    android:textAppearance="@style/Text.BodySmall" />
+
+                <TextView
+                    android:id="@+id/recovery_code"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:background="@drawable/bg_squircle"
+                    android:fontFamily="monospace"
+                    android:lineSpacingExtra="6dp"
+                    android:padding="14dp"
+                    android:textColor="?attr/colorOnSurface"
+                    android:textIsSelectable="true"
+                    android:textSize="15sp"
+                    tools:text="ABCD EFGH JKLM NPQR" />
+
+                <TextView
+                    android:id="@+id/recovery_copy"
+                    android:layout_width="match_parent"
+                    android:layout_height="44dp"
+                    android:layout_marginTop="12dp"
+                    android:background="@drawable/bg_tag"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:text="@string/sync_recovery_copy"
+                    android:textColor="?attr/colorPrimary"
+                    android:textSize="14sp" />
+            </LinearLayout>
+
+        </LinearLayout>
+    </ScrollView>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 模式卡。选中时 2dp 主色描边，未选中是普通容器色。
+     用描边而不是换底色表示选中 —— 三张卡都换底色的话，
+     一眼看过去分不清哪张是"选中"哪张只是"高亮"。 -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="?attr/colorOnSurfaceVariant">
+    <item android:id="@android:id/mask">
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/card_radius" />
+            <solid android:color="#FFFFFF" />
+        </shape>
+    </item>
+    <item>
+        <selector>
+            <item android:state_selected="true">
+                <shape android:shape="rectangle">
+                    <corners android:radius="@dimen/card_radius" />
+                    <solid android:color="?attr/colorSurfaceContainer" />
+                    <stroke android:width="2dp" android:color="?attr/colorPrimary" />
+                </shape>
+            </item>
+            <item>
+                <shape android:shape="rectangle">
+                    <corners android:radius="@dimen/card_radius" />
+                    <solid android:color="?attr/colorSurfaceContainer" />
+                </shape>
+            </item>
+        </selector>
+    </item>
+</ripple>

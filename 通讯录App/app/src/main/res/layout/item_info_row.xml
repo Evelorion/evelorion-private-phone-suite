@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/info_row"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_card_row"
+    android:clickable="true"
+    android:focusable="true"
+    android:minHeight="@dimen/card_row_min_height"
+    android:paddingStart="@dimen/card_row_padding_horizontal"
+    android:paddingTop="@dimen/card_row_padding_vertical"
+    android:paddingEnd="@dimen/card_row_padding_horizontal"
+    android:paddingBottom="@dimen/card_row_padding_vertical">
+
+    <ImageView
+        android:id="@+id/icon"
+        android:layout_width="22dp"
+        android:layout_height="22dp"
+        android:importantForAccessibility="no"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:tint="?attr/colorOnSurfaceVariant" />
+
+    <!-- 值在上、标签在下：M3 列表的做法，先看到内容本身 -->
+    <TextView
+        android:id="@+id/value"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/card_row_gap"
+        android:ellipsize="end"
+        android:maxLines="2"
+        android:textAppearance="@style/Text.BodyLarge"
+        app:layout_constraintBottom_toTopOf="@+id/label"
+        app:layout_constraintEnd_toStartOf="@+id/copy"
+        app:layout_constraintStart_toEndOf="@+id/icon"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_chainStyle="packed"
+        tools:text="138 0013 8000" />
+
+    <TextView
+        android:id="@+id/label"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/card_row_gap"
+        android:layout_marginTop="2dp"
+        android:maxLines="1"
+        android:textAppearance="@style/Text.LabelSmall"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@+id/copy"
+        app:layout_constraintStart_toEndOf="@+id/icon"
+        app:layout_constraintTop_toBottomOf="@+id/value"
+        tools:text="手机" />
+
+    <ImageView
+        android:id="@+id/copy"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:background="@drawable/bg_circle_ripple"
+        android:contentDescription="@string/copied"
+        android:padding="10dp"
+        android:src="@drawable/ic_content_copy"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:tint="?attr/colorOnSurfaceVariant"
+        tools:visibility="visible" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

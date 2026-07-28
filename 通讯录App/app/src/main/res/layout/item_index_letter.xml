@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 严格对应设计稿的尺寸，出处见 dimens.xml 里各条的注释。 -->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/letter"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="?attr/colorSurface"
+    android:paddingStart="@dimen/row_padding_horizontal"
+    android:paddingTop="@dimen/index_letter_padding_top"
+    android:paddingEnd="@dimen/row_padding_horizontal"
+    android:paddingBottom="@dimen/index_letter_padding_bottom"
+    android:textAppearance="@style/Text.IndexLetter" />

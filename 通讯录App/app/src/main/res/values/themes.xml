@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  主题。
+
+  ── 这里和上一版最大的不同 ────────────────────────────────────
+
+  上一版继承的是 commons 的 AppTheme.Base，结果 commons 的
+  BaseSimpleActivity.onCreate() 里那句 setTheme(getThemeId(...))
+  会把主题整个换掉，M3 的 token 一个都活不下来。
+
+  这一版**完全不继承 commons**，直接从 Theme.Material3 起。
+  commons 只作为数据层的依赖库存在，它的 Activity 和主题一概不用。
+
+  ── 配色怎么切 ────────────────────────────────────────────────
+
+  三套配色不是三个主题，是三个 ThemeOverlay。Activity 在 onCreate 里
+  按用户的选择叠加，切换后 recreate()。见 M3Theme.kt。
+-->
+<resources>
+
+    <style name="Theme.Contacts" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/m3_primary</item>
+        <item name="colorOnPrimary">@color/m3_on_primary</item>
+        <item name="colorPrimaryContainer">@color/m3_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/m3_on_primary_container</item>
+
+        <item name="colorSecondaryContainer">@color/m3_secondary_container</item>
+        <item name="colorOnSecondaryContainer">@color/m3_on_secondary_container</item>
+        <item name="colorTertiaryContainer">@color/m3_tertiary_container</item>
+        <item name="colorOnTertiaryContainer">@color/m3_on_tertiary_container</item>
+
+        <!-- 表面层级。M3 用五级容器色代替阴影表达层次，
+             这也是为什么下面的卡片和导航栏 elevation 都是 0。 -->
+        <item name="colorSurface">@color/m3_surface</item>
+        <item name="colorSurfaceContainerLow">@color/m3_surface_container_low</item>
+        <item name="colorSurfaceContainer">@color/m3_surface_container</item>
+        <item name="colorSurfaceContainerHigh">@color/m3_surface_container_high</item>
+        <item name="colorSurfaceContainerHighest">@color/m3_surface_container_highest</item>
+        <item name="colorOnSurface">@color/m3_on_surface</item>
+        <item name="colorOnSurfaceVariant">@color/m3_on_surface_variant</item>
+
+        <item name="colorOutline">@color/m3_outline</item>
+        <item name="colorOutlineVariant">@color/m3_outline_variant</item>
+        <item name="colorError">@color/m3_error</item>
+
+        <!-- 系统栏透明、内容延伸到边缘。设计稿的状态栏区域是页面底色的一部分。 -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowBackground">@color/m3_surface</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+
+        <!-- 关掉 Material 的 elevation overlay。M3 已经用容器色表达层次了，
+             再叠一层半透明白会让所有卡片比设计稿浅一档。 -->
+        <item name="elevationOverlayEnabled">false</item>
+    </style>
+
+    <!-- ══════════════ 配色 overlay ══════════════ -->
+
+    <style name="ThemeOverlay.Contacts.Teal" parent="">
+        <item name="colorPrimary">@color/m3_teal_primary</item>
+        <item name="colorOnPrimary">@color/m3_teal_on_primary</item>
+        <item name="colorPrimaryContainer">@color/m3_teal_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/m3_teal_on_primary_container</item>
+        <item name="colorSecondaryContainer">@color/m3_teal_secondary_container</item>
+        <item name="colorOnSecondaryContainer">@color/m3_teal_on_secondary_container</item>
+        <item name="colorTertiaryContainer">@color/m3_teal_tertiary_container</item>
+        <item name="colorOnTertiaryContainer">@color/m3_teal_on_tertiary_container</item>
+        <item name="colorSurface">@color/m3_teal_surface</item>
+        <item name="colorSurfaceContainerLow">@color/m3_teal_surface_container_low</item>
+        <item name="colorSurfaceContainer">@color/m3_teal_surface_container</item>
+        <item name="colorSurfaceContainerHigh">@color/m3_teal_surface_container_high</item>
+        <item name="colorSurfaceContainerHighest">@color/m3_teal_surface_container_highest</item>
+        <item name="android:windowBackground">@color/m3_teal_surface</item>
+    </style>
+
+    <style name="ThemeOverlay.Contacts.Warm" parent="">
+        <item name="colorPrimary">@color/m3_warm_primary</item>
+        <item name="colorOnPrimary">@color/m3_warm_on_primary</item>
+        <item name="colorPrimaryContainer">@color/m3_warm_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/m3_warm_on_primary_container</item>
+        <item name="colorSecondaryContainer">@color/m3_warm_secondary_container</item>
+        <item name="colorOnSecondaryContainer">@color/m3_warm_on_secondary_container</item>
+        <item name="colorTertiaryContainer">@color/m3_warm_tertiary_container</item>
+        <item name="colorOnTertiaryContainer">@color/m3_warm_on_tertiary_container</item>
+        <item name="colorSurface">@color/m3_warm_surface</item>
+        <item name="colorSurfaceContainerLow">@color/m3_warm_surface_container_low</item>
+        <item name="colorSurfaceContainer">@color/m3_warm_surface_container</item>
+        <item name="colorSurfaceContainerHigh">@color/m3_warm_surface_container_high</item>
+        <item name="colorSurfaceContainerHighest">@color/m3_warm_surface_container_highest</item>
+        <item name="android:windowBackground">@color/m3_warm_surface</item>
+    </style>
+
+</resources>

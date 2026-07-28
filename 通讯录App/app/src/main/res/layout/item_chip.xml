@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 筛选 chip / 搜索历史词。设计稿 height:36 radius:18 padding:0 16。 -->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="@dimen/chip_height"
+    android:background="@drawable/bg_chip"
+    android:clickable="true"
+    android:focusable="true"
+    android:gravity="center"
+    android:maxLines="1"
+    android:paddingStart="@dimen/chip_padding_horizontal"
+    android:paddingEnd="@dimen/chip_padding_horizontal"
+    android:textAppearance="@style/Text.LabelLarge" />

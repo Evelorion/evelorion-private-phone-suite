@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="@dimen/field_gap"
+    android:paddingTop="8dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_field"
+        android:gravity="center_vertical"
+        android:minHeight="@dimen/field_min_height"
+        android:orientation="horizontal"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp">
+
+        <ImageView
+            android:id="@+id/field_icon"
+            android:layout_width="21dp"
+            android:layout_height="21dp"
+            android:importantForAccessibility="no"
+            app:tint="?attr/colorOnSurfaceVariant" />
+
+        <EditText
+            android:id="@+id/field_input"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="14dp"
+            android:layout_weight="1"
+            android:background="@null"
+            android:importantForAutofill="no"
+            android:maxLines="1"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="16sp" />
+    </LinearLayout>
+
+    <!-- 浮动标签：贴着描边、底色挖空。设计稿 top:-8px left:14px padding:0 6px 12px 主色 -->
+    <TextView
+        android:id="@+id/field_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="14dp"
+        android:background="?attr/colorSurface"
+        android:paddingStart="6dp"
+        android:paddingEnd="6dp"
+        android:textColor="?attr/colorPrimary"
+        android:textSize="12sp" />
+
+</FrameLayout>

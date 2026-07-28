@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 卡片内部的一行。默认透明露出卡片底色，按下时加深。 -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android" android:color="?attr/colorOnSurfaceVariant">
+    <item android:drawable="@android:color/transparent" />
+</ripple>

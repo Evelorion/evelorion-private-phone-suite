@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 联系人列表行。平时无底色，按下时是圆角 20 的 ripple。 -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android" android:color="?attr/colorOnSurfaceVariant">
+    <item android:id="@android:id/mask">
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/row_radius" />
+            <solid android:color="#FFFFFF" />
+        </shape>
+    </item>
+</ripple>

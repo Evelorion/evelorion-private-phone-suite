@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  全量排除。私密联系人和同步凭据都在这个 App 的私有目录里，
+  被 adb backup 或厂商云备份带走的话，signature 权限那层保护完全绕过。
+-->
+<full-backup-content>
+    <exclude domain="root" />
+    <exclude domain="file" />
+    <exclude domain="database" />
+    <exclude domain="sharedpref" />
+    <exclude domain="external" />
+</full-backup-content>

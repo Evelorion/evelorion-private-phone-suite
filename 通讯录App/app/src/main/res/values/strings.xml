@@ -1,0 +1,239 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">通讯录</string>
+    <string name="profile_initial" translatable="false">我</string>
+
+    <!-- 导航 -->
+    <string name="tab_contacts">联系人</string>
+    <string name="tab_favorites">收藏</string>
+    <string name="tab_settings">设置</string>
+
+    <!-- 主页 -->
+    <string name="search_hint">搜索联系人</string>
+    <string name="action_new">新建</string>
+    <string name="action_new_contact">新建联系人</string>
+    <!-- %1$s 条数（千分位），%2$s 同步状态 -->
+    <string name="subtitle_count_synced">%1$s 位 · %2$s</string>
+    <string name="subtitle_count">%s 位</string>
+    <string name="sync_synced">已同步</string>
+    <string name="sync_never">未同步</string>
+    <string name="empty_no_contacts">还没有联系人</string>
+    <string name="empty_no_contacts_desc">点右下角「新建」添加第一位联系人</string>
+    <string name="need_contacts_permission">需要通讯录权限才能显示联系人</string>
+    <string name="grant_permission">授予权限</string>
+
+    <!-- 收藏页 -->
+    <string name="section_groups">群组</string>
+    <string name="empty_no_favorites">还没有收藏的联系人</string>
+    <string name="fav_count_suffix">%d 位联系人</string>
+
+    <!-- 搜索页 -->
+    <string name="search_input_hint">搜索姓名或号码</string>
+    <string name="search_recent">最近搜索</string>
+    <string name="search_result_count">%d 个结果</string>
+    <string name="search_empty_title">没有找到「%s」</string>
+    <string name="search_empty_desc">试试其他姓名、拼音首字母或号码片段</string>
+    <string name="action_back">返回</string>
+    <string name="action_clear">清空</string>
+
+    <!-- 详情页 -->
+    <string name="action_call">拨号</string>
+    <string name="action_sms">短信</string>
+    <string name="action_video">视频</string>
+    <string name="action_mail">邮件</string>
+    <string name="detail_groups">所属群组</string>
+    <string name="detail_edit">编辑联系人</string>
+    <string name="label_mobile">手机</string>
+    <string name="label_email">电子邮件</string>
+    <string name="label_company">公司与职位</string>
+    <string name="label_birthday">生日</string>
+    <string name="label_note">备注</string>
+    <string name="copied">已复制</string>
+    <string name="toggle_favorite">收藏</string>
+    <string name="action_delete">删除</string>
+    <string name="delete_confirm">要删除这位联系人吗？</string>
+
+    <!-- 编辑页 -->
+    <string name="edit_new_title">新建联系人</string>
+    <string name="edit_title">编辑联系人</string>
+    <string name="action_save">保存</string>
+    <string name="field_name">姓名</string>
+    <string name="field_phone">电话</string>
+    <string name="field_email">邮箱</string>
+    <string name="field_company">公司</string>
+    <string name="edit_add_field">添加更多字段</string>
+    <string name="field_job">职位</string>
+    <string name="field_address">地址</string>
+    <string name="field_birthday">生日</string>
+    <string name="field_website">网站</string>
+    <string name="field_note">备注</string>
+    <string name="edit_change_photo">更换头像</string>
+    <string name="saved">已保存</string>
+    <string name="save_failed">保存失败</string>
+
+    <!-- 设置页 -->
+    <string name="settings_display_section">显示与排序</string>
+    <string name="settings_pinyin">拼音首字母索引</string>
+    <string name="settings_pinyin_desc">按姓氏拼音分组并显示 A–Z 索引</string>
+    <string name="settings_dark">深色主题</string>
+    <string name="settings_dark_desc">跟随系统或始终开启</string>
+    <string name="settings_compact">紧凑列表密度</string>
+    <string name="settings_compact_desc">每屏显示更多联系人</string>
+    <string name="settings_data_section">数据与权限</string>
+    <string name="settings_permission">通讯录权限</string>
+    <string name="settings_permission_desc">查看权限引导页</string>
+    <string name="settings_merge">合并重复联系人</string>
+    <string name="settings_import_export">导入 / 导出 vCard</string>
+    <string name="settings_appearance_section">外观</string>
+    <string name="settings_palette">配色</string>
+    <string name="palette_default">默认紫</string>
+    <string name="palette_teal">青绿</string>
+    <string name="palette_warm">暖橙</string>
+    <string name="palette_dynamic">动态取色</string>
+    <string name="dark_follow_system">跟随系统</string>
+    <string name="dark_off">始终关闭</string>
+    <string name="dark_on">始终开启</string>
+    <string name="settings_privacy_section">隐私与同步</string>
+    <string name="settings_sync">加密同步</string>
+    <string name="settings_sync_desc">端到端加密，存到你自己的服务器</string>
+    <string name="settings_local_encryption">本地数据库加密</string>
+    <string name="coming_in_next_build">这个模块在下一个测试包里接入</string>
+
+    <!-- 加密同步 -->
+    <string name="sync_intro">联系人加密后存到你自己的服务器。服务器只拿得到密文，没有主口令谁都解不开 —— 包括服务器管理员自己。</string>
+    <string name="sync_field_server">服务器地址</string>
+    <string name="sync_field_username">用户名</string>
+    <string name="sync_field_passphrase">主口令</string>
+    <string name="sync_field_invite">邀请码</string>
+    <string name="sync_mode_register">注册</string>
+    <string name="sync_mode_login">登录</string>
+    <string name="sync_mode_recover">用恢复码</string>
+    <string name="sync_field_recovery">恢复码</string>
+    <string name="sync_hint_register">在服务器上创建一个新账号。需要管理员给的邀请码。</string>
+    <string name="sync_hint_login">用已有账号登录。**这也是从云端恢复的方式** —— 换手机或重装后，登录同一个账号，联系人会自动拉回来。</string>
+    <string name="sync_hint_recover">忘了主口令时用这条路。填注册时抄下来的恢复码，联系人一样能拿回来。恢复之后请立刻设一个新的主口令。</string>
+    <string name="sync_recovered_set_new_pass">已恢复。请到「修改主口令」设一个新口令 —— 否则下次还得再用一次恢复码。</string>
+    <string name="sync_now">立即同步</string>
+    <string name="sync_sign_out">退出登录</string>
+    <string name="sync_signed_out">已退出</string>
+    <string name="sync_never_run">还没有同步过</string>
+    <string name="sync_last_run">上次同步 %s</string>
+    <string name="sync_pending">待上传 %d 条</string>
+    <string name="sync_running">同步中…</string>
+    <string name="sync_done">同步完成：拉取 %1$d 条，上传 %2$d 条</string>
+    <string name="sync_failed">同步失败：%s</string>
+    <string name="sync_integrity_warning">⚠ 同步完成，但清单校验发现 %d 处问题 —— 服务器返回的数据可能不完整或被回退过</string>
+    <string name="sync_working">处理中…</string>
+    <string name="sync_need_all_fields">请把上面的字段都填上</string>
+    <string name="sync_recovery_title">恢复码</string>
+    <string name="sync_recovery_desc">忘记主口令时，这是唯一能拿回数据的方式。抄在纸上收好 —— 它只显示这一次，服务器上也没有。</string>
+    <string name="sync_recovery_copy">复制恢复码</string>
+    <string name="sync_url_must_be_https">服务器地址必须是 https —— 内容是密文，但访问令牌明文过网的话，拿到的人能删你服务器上的数据</string>
+
+    <!-- 权限（两个 App 都声明，文案必须一致） -->
+    <string name="permission_read_private_contacts_label">读取私密联系人</string>
+    <string name="permission_read_private_contacts_desc">允许同一开发者签名的应用读取本机的私密联系人</string>
+    <string name="permission_vault_bridge_label">读取同步凭据</string>
+    <string name="permission_vault_bridge_desc">允许同一开发者签名的应用取得受限的同步密钥，用于加密自己的数据</string>
+
+    <!-- 连通性自检与错误提示 -->
+    <string name="sync_test_connection">测试连接</string>
+    <string name="sync_testing">测试中…</string>
+    <string name="sync_test_ok">服务器可达：%s</string>
+    <string name="sync_test_failed">连不上：%s</string>
+    <string name="err_bad_invite">邀请码不对。到服务器的 /admin 后台重新生成一个</string>
+    <string name="err_username_taken">这个用户名已经被占用了</string>
+    <string name="err_bad_credentials">用户名或主口令不对</string>
+    <string name="err_rate_limited">尝试太频繁，被服务器限流了。等一小时再试</string>
+    <string name="err_auth_expired">登录已过期，请重新登录</string>
+    <string name="err_unknown_host">域名解析不了。检查地址拼写，以及手机能不能上网</string>
+    <string name="err_timeout">连接超时。服务器可能没在跑，或者端口被防火墙挡了</string>
+    <string name="err_connect">连不上服务器。检查端口号对不对（这套服务默认在 8443）</string>
+    <string name="err_ssl">TLS 握手失败。证书可能过期了，或者手机时间不对</string>
+    <string name="err_server">服务器返回 %1$d：%2$s</string>
+    <string name="err_generic">出错了：%s</string>
+
+    <!-- 合并重复联系人 -->
+    <string name="merge_title">合并重复联系人</string>
+    <string name="merge_scanning">正在扫描…</string>
+    <string name="merge_found">发现 %d 组可能重复</string>
+    <string name="merge_none">没有发现重复的联系人</string>
+    <string name="merge_none_desc">按姓名和号码比对过了，没找到重复项</string>
+    <string name="merge_group_by_name">姓名相同</string>
+    <string name="merge_group_by_number">号码相同</string>
+    <string name="merge_action">合并这一组</string>
+    <string name="merge_all">全部合并</string>
+    <string name="merge_done">已合并 %d 组</string>
+    <string name="merge_confirm">合并后会保留信息最全的那一条，其余的号码、邮箱会并进去，然后删掉多余的联系人。这个操作不能撤销。</string>
+
+    <!-- 导入导出 -->
+    <string name="vcard_title">导入 / 导出 vCard</string>
+    <string name="vcard_export">导出全部联系人</string>
+    <string name="vcard_export_desc">存成 .vcf 文件，可以给别的通讯录 App 用</string>
+    <string name="vcard_import">从文件导入</string>
+    <string name="vcard_import_desc">读取 .vcf 文件，重名的会跳过</string>
+    <string name="vcard_exporting">导出中…</string>
+    <string name="vcard_importing">导入中…</string>
+    <string name="vcard_export_done">已导出 %d 位联系人</string>
+    <string name="vcard_import_done">已导入 %1$d 位，跳过重复 %2$d 位</string>
+    <string name="vcard_failed">操作失败：%s</string>
+    <string name="vcard_empty">没有可导出的联系人</string>
+
+    <!-- 本地数据库加密 -->
+    <string name="localdb_intro">加密的是落在磁盘上的数据库文件。拿到你手机文件的人（丢手机、adb backup、从备份里翻）打不开它。三种模式的区别只在密钥放哪。</string>
+    <string name="localdb_encrypted">数据库已加密</string>
+    <string name="localdb_not_encrypted">数据库未加密</string>
+    <string name="localdb_mode_keystore">Keystore 保管</string>
+    <string name="localdb_mode_screen_lock">Keystore + 屏幕锁</string>
+    <string name="localdb_mode_passphrase">主口令派生</string>
+    <string name="localdb_switch_confirm">切换会用新密钥把整个数据库重新加密一遍，可能要几秒。中途失败会自动还原到切换前的状态。</string>
+    <string name="localdb_need_passphrase">需要主口令</string>
+    <string name="localdb_need_passphrase_desc">切到主口令模式要用它派生新密钥；从主口令模式切走要用它解开旧密钥。口令不会被存下来。</string>
+    <string name="localdb_passphrase_empty">主口令不能为空</string>
+    <string name="localdb_switching">正在重新加密…</string>
+    <string name="localdb_switched">已切换</string>
+    <string name="localdb_switch_failed">切换失败：%s</string>
+    <string name="localdb_caveat">挡不住的：设备被 root 或刷了改过的系统时，任何纯软件方案都挡不住 —— 攻击者可以直接读进程内存里的密钥。「主口令派生」模式能缩小这个窗口（密钥只在解锁后存在），但也不是零风险。</string>
+
+    <!-- 私密联系人 -->
+    <string name="sync_migrated">已搬进 %d 位联系人</string>
+    <string name="sync_private_count">已加密 %d 位</string>
+    <string name="sync_locked_title">需要主口令</string>
+    <string name="sync_locked_desc">解密用的密钥不在这台设备上（可能是重装过，或者你选了「主口令派生」的加密模式）。输入主口令继续。口令不会被存下来。</string>
+
+    <!-- 从系统通讯录导入 -->
+    <string name="import_title">从系统通讯录导入</string>
+    <string name="settings_import_system_desc">把别的 App 存的联系人搬进加密库</string>
+    <string name="import_intro">这个 App 只管自己的加密联系人。系统通讯录里已有的（别的 App 存的、SIM 卡导入的、Google 同步下来的）不在其中 —— 用这个功能把它们搬进来。</string>
+    <string name="import_step1">第一步：导入</string>
+    <string name="import_available">系统通讯录里有 %d 位联系人</string>
+    <string name="import_action">导入到加密库</string>
+    <string name="import_working">导入中…</string>
+    <string name="import_confirm">把系统通讯录里的联系人复制进这个 App 的加密库。号码已经存在的会自动跳过。
+
+这一步不会动系统里的原件。</string>
+    <string name="import_result">已导入 %1$d 位，跳过重复 %2$d 位</string>
+
+    <string name="import_step2">第二步：清理原件（可选）</string>
+    <string name="import_step2_desc">导入完成。你可以把系统通讯录里的那份删掉，这样联系人就只存在于本 App 的加密库里，其它 App 读不到。</string>
+    <string name="import_step2_count">刚才导入的 %d 位联系人在系统通讯录里还有一份。删掉之后，它们就只存在于加密库里，其它 App 读不到。</string>
+    <string name="import_cleanup_action">删除系统通讯录里的原件</string>
+    <string name="import_cleaning">删除中…</string>
+    <string name="import_cleaned">已从系统通讯录删除 %d 位</string>
+    <string name="import_cleanup_confirm">将从系统通讯录删除 %d 位联系人 —— **只删刚才成功导入的那些**，因号码重复被跳过的不会动。
+
+这个操作不可撤销。</string>
+    <string name="import_cleanup_next">我明白，继续</string>
+    <string name="import_cleanup_do">确认删除</string>
+    <string name="import_cleanup_final_title">最后确认</string>
+    <string name="import_cleanup_final">真的要从系统通讯录删除这 %d 位联系人吗？
+
+删除之后：
+• 其它 App（拨号盘、短信、微信…）读不到它们了
+• 只能通过本 App 或它的加密同步访问
+• 无法撤销</string>
+    <string name="import_need_write_permission">删除系统联系人需要通讯录写入权限</string>
+    <string name="import_caveat">建议先导入、用一段时间确认没问题，再回来删原件。删除之后其它 App 就读不到这些联系人了 —— 拨号盘不显示来电姓名、短信不显示联系人名，这是预期行为，也正是这个 App 的目的。</string>
+    <string name="sync_status_unavailable">同步状态读取失败</string>
+    <string name="sync_last_error">上次同步失败：%1$s</string>
+</resources>

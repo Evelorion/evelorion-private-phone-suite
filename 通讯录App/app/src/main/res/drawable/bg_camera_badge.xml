@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 编辑页头像右下的相机角标：primary_container 底 + 3dp surface 描边（模拟设计稿的白圈） -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <corners android:radius="@dimen/edit_camera_radius" />
+    <solid android:color="?attr/colorPrimaryContainer" />
+    <stroke android:width="3dp" android:color="?attr/colorSurface" />
+</shape>

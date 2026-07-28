@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 编辑页的 outlined 文本框。聚焦时描边换主色并加粗 —— M3 outlined field 的标准行为。 -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true">
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/field_radius" />
+            <stroke android:width="@dimen/field_stroke" android:color="?attr/colorPrimary" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/field_radius" />
+            <stroke android:width="1dp" android:color="?attr/colorOutline" />
+        </shape>
+    </item>
+</selector>

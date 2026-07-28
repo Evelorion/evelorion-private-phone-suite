@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 严格对应设计稿的尺寸，出处见 dimens.xml 里各条的注释。 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_card_clickable"
+    android:clickable="true"
+    android:focusable="true"
+    android:orientation="vertical"
+    android:paddingStart="@dimen/fav_card_padding_horizontal"
+    android:paddingTop="@dimen/fav_card_padding_vertical"
+    android:paddingEnd="@dimen/fav_card_padding_horizontal"
+    android:paddingBottom="@dimen/fav_card_padding_vertical">
+
+    <ImageView
+        android:id="@+id/avatar"
+        android:layout_width="@dimen/fav_avatar_size"
+        android:layout_height="@dimen/fav_avatar_size"
+        android:importantForAccessibility="no"
+        android:scaleType="centerCrop" />
+
+    <TextView
+        android:id="@+id/name"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textAppearance="@style/Text.BodyLarge"
+        android:textStyle="bold"
+        tools:text="安雅婷" />
+
+    <TextView
+        android:id="@+id/number"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textAppearance="@style/Text.LabelSmall"
+        tools:text="138 0013 8000" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:orientation="horizontal">
+
+        <FrameLayout
+            android:id="@+id/action_call"
+            android:layout_width="0dp"
+            android:layout_height="@dimen/fav_action_height"
+            android:layout_weight="1"
+            android:background="@drawable/bg_fav_action_primary"
+            android:contentDescription="@string/action_call">
+
+            <ImageView
+                android:layout_width="@dimen/fav_action_icon_size"
+                android:layout_height="@dimen/fav_action_icon_size"
+                android:layout_gravity="center"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_call"
+                app:tint="?attr/colorOnPrimaryContainer"
+                xmlns:app="http://schemas.android.com/apk/res-auto" />
+        </FrameLayout>
+
+        <FrameLayout
+            android:id="@+id/action_sms"
+            android:layout_width="0dp"
+            android:layout_height="@dimen/fav_action_height"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_fav_action_neutral"
+            android:contentDescription="@string/action_sms">
+
+            <ImageView
+                android:layout_width="@dimen/fav_action_icon_size"
+                android:layout_height="@dimen/fav_action_icon_size"
+                android:layout_gravity="center"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_chat_bubble"
+                app:tint="?attr/colorOnSurfaceVariant"
+                xmlns:app="http://schemas.android.com/apk/res-auto" />
+        </FrameLayout>
+    </LinearLayout>
+
+</LinearLayout>

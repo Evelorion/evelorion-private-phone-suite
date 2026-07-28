@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  启动图标前景：话筒。
+
+  ── 关于坐标系 ──────────────────────────────────────────────
+  用的是经典 Material 图标的 24×24 坐标系（Y 向下为正），
+  所以**不需要** translateY 补偿。
+
+  需要补偿的是另一套：官方 Material Symbols 导出的 SVG 用
+  viewBox="0 -960 960 960"（Y 是负的），而 VectorDrawable 没有
+  viewBox 偏移这个概念，直接抄进来图形会跑到可视区外 ——
+  表现是「图标空白，但不报错」。两套坐标系混用过一次，
+  查了很久才发现，所以这里写明白用的是哪一套。
+
+  外层 group 把 24 单位放大到 44 并居中：自适应图标的安全区
+  只有中间 72/108，画满会被系统裁掉边缘。
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:scaleX="1.8333"
+        android:scaleY="1.8333"
+        android:translateX="32"
+        android:translateY="32">
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M6.62,10.79c1.44,2.83 3.76,5.14 6.59,6.59l2.2,-2.2c0.27,-0.27 0.67,-0.36 1.02,-0.24 1.12,0.37 2.33,0.57 3.57,0.57 0.55,0 1,0.45 1,1V20c0,0.55 -0.45,1 -1,1 -9.39,0 -17,-7.61 -17,-17 0,-0.55 0.45,-1 1,-1h3.5c0.55,0 1,0.45 1,1 0,1.25 0.2,2.45 0.57,3.57 0.11,0.35 0.03,0.74 -0.25,1.02l-2.2,2.2z" />
+    </group>
+</vector>

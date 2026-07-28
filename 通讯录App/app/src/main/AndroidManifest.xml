@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <uses-permission android:name="android.permission.WRITE_CONTACTS" />
+    <uses-permission android:name="android.permission.GET_ACCOUNTS" />
+    <uses-permission android:name="android.permission.CALL_PHONE" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!--
+      私密联系人的两个自定义权限。
+
+      **两个 App（通讯录和电话）都声明这两条，而且必须逐字一致。**
+      自定义权限的规则是：请求时如果没有任何已装应用定义过它，请求会被
+      静默丢弃，之后定义方装上也不补授予。两边都声明就没有安装顺序问题。
+
+      附带好处：Android 只允许签名相同的包声明同名权限，签名不一致时
+      第二个 App 会 INSTALL_FAILED_DUPLICATE_PERMISSION 直接装不上 ——
+      把「必须同签名」从隐性前提变成安装时的显式报错。
+    -->
+    <permission
+        android:name="com.evelorion.permission.READ_PRIVATE_CONTACTS"
+        android:description="@string/permission_read_private_contacts_desc"
+        android:label="@string/permission_read_private_contacts_label"
+        android:protectionLevel="signature" />
+
+    <permission
+        android:name="com.evelorion.permission.VAULT_BRIDGE"
+        android:description="@string/permission_vault_bridge_desc"
+        android:label="@string/permission_vault_bridge_label"
+        android:protectionLevel="signature" />
+
+    <application
+        android:name=".ContactsApp"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Contacts">
+
+        <activity
+            android:name=".ui.home.HomeActivity"
+            android:exported="true"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".ui.search.SearchActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.home.HomeActivity"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
+            android:name=".ui.detail.DetailActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.home.HomeActivity" />
+
+        <activity
+            android:name=".ui.edit.EditActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.home.HomeActivity"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
+            android:name=".ui.settings.SettingsActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.home.HomeActivity" />
+
+        <activity
+            android:name=".ui.settings.SyncSetupActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.settings.SettingsActivity"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
+            android:name=".ui.settings.LocalEncryptionActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.settings.SettingsActivity"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
+            android:name=".ui.tools.MergeActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.settings.SettingsActivity" />
+
+        <activity
+            android:name=".ui.tools.ImportSystemActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.settings.SettingsActivity" />
+
+        <activity
+            android:name=".ui.tools.VCardActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.settings.SettingsActivity" />
+
+        <activity
+            android:name=".ui.group.GroupContactsActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.home.HomeActivity" />
+
+        <!--
+          私密联系人的对外出口。只有同签名且通过 PrivacyGuard 校验的
+          自家 App 能读到内容，其它调用方拿到空 Cursor
+          （不是异常 —— 抛异常会让对方闪退，反而暴露了「这里有东西」）。
+        -->
+        <!-- 崩溃详情页。exported=false，只能自家启动。 -->
+        <activity
+            android:name=".ui.CrashActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:theme="@android:style/Theme.Material.Light" />
+
+        <provider
+            android:name=".privacy.PrivateContactsProvider"
+            android:authorities="com.evelorion.contacts.privateprovider"
+            android:exported="true"
+            android:readPermission="com.evelorion.permission.READ_PRIVATE_CONTACTS" />
+
+        <!-- 把 calls 子密钥交给电话 App 的通道。给出去的是
+             HKDF(DEK, "calls") 派生出来的子密钥，**不是 DEK 本身** ——
+             电话 App 拿它解不开联系人。 -->
+        <!--
+             注意 name 指向 .sync.bridge 下那个**真实实现**。
+             之前这里指的是 .privacy 包下的 29 行空壳，
+             结果是「共用同步账号」这条通道一直返回空 —— 电话 App
+             接过去也拿不到任何东西，而且不报错，纯粹静默失效。
+        -->
+        <provider
+            android:name=".sync.bridge.VaultBridgeProvider"
+            android:authorities="com.evelorion.contacts.vaultbridge"
+            android:exported="true"
+            android:readPermission="com.evelorion.permission.VAULT_BRIDGE" />
+
+    </application>
+</manifest>

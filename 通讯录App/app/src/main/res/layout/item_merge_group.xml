@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="12dp"
+    android:background="@drawable/bg_card"
+    android:orientation="vertical"
+    android:padding="18dp">
+
+    <TextView
+        android:id="@+id/reason"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textAppearance="@style/Text.SectionHeader"
+        tools:text="号码相同" />
+
+    <TextView
+        android:id="@+id/members"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:lineSpacingExtra="3dp"
+        android:textAppearance="@style/Text.BodyLarge"
+        tools:text="王小明 · 138 0013 8000\n王小明 · 13800138000" />
+
+    <TextView
+        android:id="@+id/merge_one"
+        android:layout_width="match_parent"
+        android:layout_height="44dp"
+        android:layout_marginTop="14dp"
+        android:background="@drawable/bg_tag"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="center"
+        android:text="@string/merge_action"
+        android:textColor="?attr/colorPrimary"
+        android:textSize="14sp" />
+
+</LinearLayout>

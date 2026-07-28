@@ -1,0 +1,22 @@
+# 构建产物
+build/
+.gradle/
+.kotlin/
+*.apk
+*.aab
+
+# 本机专属，绝对不要提交 ——
+# local.properties 里存的是这台机器的 Android SDK 路径，
+# 提交进去会让别人 Gradle Sync 直接失败
+local.properties
+
+# IDE
+.idea/
+*.iml
+.DS_Store
+
+# 签名材料只保存在本机，绝不提交。
+signing/*.jks
+signing/*.keystore
+signing/*.properties
+*.log

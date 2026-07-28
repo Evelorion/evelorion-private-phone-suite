@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">电话</string>
+
+    <!-- 自定义权限的标签和说明。系统在权限列表里会显示它们，
+         写清楚一点，用户看到的不该是一串包名。 -->
+    <string name="permission_read_private_contacts_label">读取加密联系人</string>
+    <string name="permission_read_private_contacts_desc">允许本应用读取「通讯录」里加密保存的联系人，用于来电显示和拨号匹配。</string>
+    <string name="permission_vault_bridge_label">共用同步保险库</string>
+    <string name="permission_vault_bridge_desc">允许本应用向「通讯录」索取通话记录的加密子密钥，从而不必单独登录一次同步账号。</string>
+
+    <!-- 默认拨号器引导 -->
+    <string name="dialer_role_title">设为默认电话应用</string>
+    <string name="dialer_role_body">只有成为系统默认电话应用，这里的来电界面和通话界面才会被真正用上，接听、拒接、静音也才能由本应用控制。</string>
+    <string name="dialer_role_action">去设置</string>
+    <string name="dialer_role_active">已是默认电话应用</string>
+</resources>

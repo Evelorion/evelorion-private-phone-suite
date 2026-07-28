@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 严格对应设计稿的尺寸，出处见 dimens.xml 里各条的注释。 -->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/section_title"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingStart="4dp"
+    android:paddingTop="26dp"
+    android:paddingEnd="4dp"
+    android:paddingBottom="10dp"
+    android:textAppearance="@style/Text.SectionHeader"
+    android:textColor="?attr/colorOnSurfaceVariant" />

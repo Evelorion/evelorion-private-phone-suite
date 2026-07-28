@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 空态图标块、编辑页头像底。设计稿写的是 30~34% 圆角。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <corners android:radius="@dimen/empty_icon_radius" />
+    <solid android:color="?attr/colorSurfaceContainerHigh" />
+</shape>

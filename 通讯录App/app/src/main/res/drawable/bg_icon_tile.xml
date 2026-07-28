@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 群组行左侧、编辑页相机角标那种圆角小色块。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <corners android:radius="@dimen/group_icon_radius" />
+    <solid android:color="?attr/colorTertiaryContainer" />
+</shape>

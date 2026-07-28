@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>我的通讯录</title>
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+
+<!-- ================= 未登录 ================= -->
+<div id="auth" class="wrap narrow" style="padding-top:48px">
+  <h1>我的通讯录</h1>
+  <p class="sub">主口令不会离开这个浏览器，解密全部在本地完成。</p>
+
+  <div class="card">
+    <div class="tabs" style="margin-bottom:8px">
+      <button id="tabLogin" class="active">登录</button>
+      <button id="tabRegister">注册</button>
+    </div>
+
+    <label>用户名</label>
+    <input id="username" autocomplete="username" spellcheck="false">
+
+    <label>主口令</label>
+    <input id="passphrase" type="password" autocomplete="current-password">
+    <div class="hint" id="passHint">主口令不会上传，也无法找回。</div>
+
+    <div id="inviteWrap" class="hidden">
+      <label>邀请码</label>
+      <input id="invite" spellcheck="false">
+      <div class="hint">向管理员索取。只在注册时需要。</div>
+    </div>
+
+    <div class="actions">
+      <button id="submitBtn" class="primary grow">登录</button>
+    </div>
+    <div id="authMsg"></div>
+  </div>
+
+  <div class="warn" style="font-size:12px">
+    这个页面的 JS 由服务器提供。服务器被攻破的话它可以发一段偷口令的脚本，
+    你看不出区别。日常建议用手机 App。
+  </div>
+  <p class="hint"><a href="/">← 返回</a></p>
+</div>
+
+<!-- ================= 恢复码（注册后只显示一次） ================= -->
+<!--
+  登录时的第二步。用一个覆盖层而不是跳页面 —— 中途取消能直接回到
+  登录表单，不会丢掉已经输好的用户名。
+-->
+<div id="mfaPanel" class="wrap narrow hidden" style="padding-top:48px">
+  <div class="card">
+    <h3>两步验证</h3>
+    <p class="sub" id="mfaPanelHint"></p>
+
+    <div id="mfaPasskeyBlock" class="hidden">
+      <div class="actions">
+        <button id="mfaUsePasskey" class="primary grow">用通行密钥验证</button>
+      </div>
+    </div>
+
+    <div id="mfaCodeBlock" class="hidden">
+      <label>验证器上的 6 位码</label>
+      <input id="mfaCode" inputmode="numeric" spellcheck="false" placeholder="000000">
+      <div class="hint">验证器丢了？把恢复码填在这里也行（形如 ABCD-EFGH）。</div>
+    </div>
+
+    <div class="actions" style="margin-top:14px">
+      <button id="mfaCancel">取消</button>
+      <button id="mfaSubmit" class="primary grow">继续</button>
+    </div>
+    <div id="mfaPanelMsg"></div>
+  </div>
+</div>
+
+<div id="recoveryPanel" class="wrap narrow hidden" style="padding-top:48px">
+  <h1>抄下这串恢复码</h1>
+  <p class="sub">它不会再显示第二次。</p>
+  <div class="code-block" id="recoveryCode"></div>
+  <div class="warn">
+    忘记主口令又没有恢复码时，服务器上的数据<b>谁都解不开</b>——包括管理员，包括我们。
+    这正是端到端加密的意思。
+  </div>
+  <div class="actions">
+    <button id="copyRecovery">复制</button>
+    <button id="recoveryDone" class="primary grow">我已经抄下来了</button>
+  </div>
+</div>
+
+<!-- ================= 主界面 ================= -->
+<div id="app" class="hidden">
+  <div class="topbar">
+    <span class="brand">我的通讯录</span>
+    <div class="tabs">
+      <button data-view="contacts" class="active">联系人</button>
+      <button data-view="calls">通话记录</button>
+      <button data-view="settings">设置</button>
+    </div>
+    <div class="spacer"></div>
+    <span class="meta" id="whoami" style="font-size:13px;color:var(--text-dim)"></span>
+    <button id="lockBtn" class="ghost">锁定</button>
+  </div>
+
+  <div class="wrap">
+    <div id="integrityWarn" class="err hidden"></div>
+
+    <!-- 联系人 -->
+    <div id="viewContacts">
+      <div class="row" style="margin-bottom:14px">
+        <input id="search" placeholder="搜索姓名、号码、邮箱…" class="grow" spellcheck="false">
+        <button id="newContact" class="primary">新建</button>
+      </div>
+      <div class="card tight" style="padding:0" id="contactList"></div>
+    </div>
+
+    <!-- 通话记录 -->
+    <div id="viewCalls" class="hidden">
+      <p class="sub">通话记录由电话 App 上传，用的是另一把密钥。这里只读。</p>
+      <div class="card tight" style="padding:0" id="callList"></div>
+    </div>
+
+    <!-- 设置 -->
+    <div id="viewSettings" class="hidden">
+      <div class="card">
+        <h3>存储</h3>
+        <div id="statusBox" class="sub">读取中…</div>
+        <div class="actions">
+          <button id="exportBtn">导出 vCard</button>
+          <button id="reloadBtn">重新拉取</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>设备</h3>
+        <p class="sub">在别处登录过的设备。吊销后那台设备需要重新登录。</p>
+        <div id="deviceList"></div>
+      </div>
+
+      <div class="card">
+        <h3>两步验证</h3>
+        <p class="sub" style="margin-bottom:4px">
+          登录时除了主口令，再验证一次身份。<span id="mfaStatus"></span>
+        </p>
+
+        <details class="note">
+          <summary>这个开关保护什么？（点开）</summary>
+          <div class="body">
+            这套系统是零知识的：服务器只有密文，解密靠你的主口令。所以两步验证保护的是
+            <b>服务器账号</b> —— 谁能拉取密文、删除数据、看到「你有多少条联系人、
+            什么时候同步的」这类元数据。
+            <br><br>
+            它<b>不是</b>加密本身。拿到你主口令的人仍然能解开他已经拿到手的密文，
+            只是没法再从服务器拉新的。真正保护数据内容的只有主口令。
+          </div>
+        </details>
+
+        <div style="margin-top:16px">
+          <!-- ─── 验证器 ─── -->
+          <div class="switch-row">
+            <div class="row-text">
+              <div class="row-title">验证器 App</div>
+              <div class="row-desc">Google Authenticator、1Password 这类，每 30 秒一个 6 位码</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="totpSwitch">
+              <span class="track"></span>
+              <span class="thumb"></span>
+            </label>
+          </div>
+
+          <!-- 扫码面板，开启流程中才出现 -->
+          <div id="totpSetup" class="hidden" style="padding:14px;background:var(--bg);border-radius:8px;margin-bottom:6px">
+            <div class="row-desc" style="margin:0 0 10px">
+              在验证器里添加这个密钥，然后输入它显示的 6 位码。
+            </div>
+            <div class="code-block" id="totpSecret" style="font-size:14px;letter-spacing:1px"></div>
+            <div id="totpUri" style="margin-top:8px"></div>
+            <label style="margin-top:12px">验证码</label>
+            <input id="totpCode" inputmode="numeric" maxlength="6" placeholder="000000" spellcheck="false">
+            <div class="actions">
+              <button id="totpCancel">取消</button>
+              <button id="totpConfirm" class="primary">确认开启</button>
+            </div>
+          </div>
+
+          <!-- 恢复码，开启成功后显示一次 -->
+          <div id="backupCodes" class="hidden" style="padding:14px;background:var(--bg);border-radius:8px;margin-bottom:6px">
+            <div class="row-title">恢复码</div>
+            <div class="row-desc" style="margin:4px 0 10px">
+              验证器丢了的时候用，每个只能用一次。<b>只显示这一次</b> ——
+              服务器上存的是哈希，找不回来。
+            </div>
+            <div class="code-block" id="backupCodeList" style="font-size:13px;line-height:2"></div>
+            <div class="actions"><button id="copyBackup">复制</button></div>
+          </div>
+
+          <!-- ─── 通行密钥 ─── -->
+          <div class="switch-row">
+            <div class="row-text">
+              <div class="row-title">通行密钥</div>
+              <div class="row-desc">指纹、面容、系统 PIN 或硬件密钥。比验证码更抗钓鱼</div>
+            </div>
+            <button id="passkeyAdd">添加</button>
+          </div>
+          <div id="passkeyList"></div>
+
+          <!-- ─── 两种都要 ─── -->
+          <div class="switch-row">
+            <div class="row-text">
+              <div class="row-title">两种都要验证</div>
+              <div class="row-desc" id="requireAllDesc">默认通过其中一种即可</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="requireAll">
+              <span class="track"></span>
+              <span class="thumb"></span>
+            </label>
+          </div>
+        </div>
+
+        <div id="mfaMsg" style="margin-top:12px"></div>
+      </div>
+
+      <div class="card">
+        <h3>修改主口令</h3>
+        <p class="sub">
+          只会重新包裹密钥，服务器上的联系人一条都不用重传。恢复码保持不变。
+        </p>
+        <label>当前主口令</label>
+        <input id="oldPass" type="password" autocomplete="current-password">
+        <label>新主口令（至少 10 位）</label>
+        <input id="newPass" type="password" autocomplete="new-password">
+        <label>恢复码（用来重新包裹）</label>
+        <input id="recoveryForChange" spellcheck="false" placeholder="14 组 4 字符">
+        <div class="actions"><button id="changePassBtn" class="primary">修改</button></div>
+      </div>
+
+      <div class="card">
+        <h3 style="color:var(--danger)">注销账号</h3>
+        <p class="sub">
+          删除服务器上的全部密文，<b>不可恢复</b>。手机上已有的联系人不受影响。
+        </p>
+        <label>输入主口令确认</label>
+        <input id="destroyPass" type="password">
+        <div class="actions"><button id="destroyBtn" class="danger">永久删除账号</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="modalRoot"></div>
+
+<script type="module" src="/user/app.js"></script>
+</body>
+</html>

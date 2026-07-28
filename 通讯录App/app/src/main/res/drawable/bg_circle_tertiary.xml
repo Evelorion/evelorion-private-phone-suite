@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 「我」头像的底。tertiary_container 让它和主色区分开，
+     避免用户误以为是另一个主操作。 -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android" android:color="?attr/colorOnTertiaryContainer">
+    <item android:id="@android:id/mask">
+        <shape android:shape="oval"><solid android:color="#FFFFFF" /></shape>
+    </item>
+    <item>
+        <shape android:shape="oval"><solid android:color="?attr/colorTertiaryContainer" /></shape>
+    </item>
+</ripple>

@@ -1,0 +1,38 @@
+# Local secrets and environment
+**/.env
+**/.env.*
+!**/.env.example
+**/local.properties
+**/signing/*.jks
+**/signing/*.keystore
+**/signing/*.properties
+**/*.pem
+**/*.key
+**/*.p12
+
+# Build outputs and dependencies
+**/build/
+**/.gradle/
+**/.kotlin/
+**/node_modules/
+**/dist/
+**/*.apk
+**/*.aab
+**/*.log
+
+# Runtime data and backups
+**/data/
+**/backups/
+**/*.db
+**/*.db-wal
+**/*.db-shm
+
+# IDE and OS
+**/.idea/
+**/*.iml
+.DS_Store
+Thumbs.db
+
+# Local deliverables and archives
+/安装包/
+/归档-旧版本/

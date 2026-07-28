@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  排版。设计稿是 412×892 的 mockup，里面的 px 按 1:1 当 sp 用
+  （412dp 正好是主流手机的宽度）。
+
+  每条都标了来自设计稿的哪一处，改之前先回去看那一处。
+-->
+<resources>
+
+    <!-- 主页大标题「联系人」 32px/40 · font-weight 400 · letter-spacing -.2px -->
+    <style name="Text.HeadlineLarge" parent="TextAppearance.Material3.HeadlineLarge">
+        <item name="android:textSize">32sp</item>
+        <item name="android:textColor">?attr/colorOnSurface</item>
+        <item name="android:letterSpacing">-0.006</item>
+        <item name="fontFamily">sans-serif</item>
+        <item name="android:textStyle">normal</item>
+    </style>
+
+    <!-- 收藏页标题、详情页姓名 30px · 600 · -.3px -->
+    <style name="Text.HeadlineMedium" parent="TextAppearance.Material3.HeadlineMedium">
+        <item name="android:textSize">30sp</item>
+        <item name="android:textColor">?attr/colorOnSurface</item>
+        <item name="android:letterSpacing">-0.01</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <!-- 页面标题栏「设置」 22px · 500 -->
+    <style name="Text.TitleLarge" parent="TextAppearance.Material3.TitleLarge">
+        <item name="android:textSize">22sp</item>
+        <item name="android:textColor">?attr/colorOnSurface</item>
+    </style>
+
+    <!-- 空态标题 19px · 500 -->
+    <style name="Text.TitleMedium" parent="TextAppearance.Material3.TitleMedium">
+        <item name="android:textSize">19sp</item>
+        <item name="android:textColor">?attr/colorOnSurface</item>
+    </style>
+
+    <!-- 列表主文本、信息行的值 16px/22 -->
+    <style name="Text.BodyLarge" parent="TextAppearance.Material3.BodyLarge">
+        <item name="android:textSize">16sp</item>
+        <item name="android:textColor">?attr/colorOnSurface</item>
+    </style>
+
+    <!-- 列表副文本 13px/18 · on_surface_variant -->
+    <style name="Text.BodySmall" parent="TextAppearance.Material3.BodySmall">
+        <item name="android:textSize">13sp</item>
+        <item name="android:textColor">?attr/colorOnSurfaceVariant</item>
+    </style>
+
+    <!-- 更小的说明文字 12px，用于开关的副标题、导航文字 -->
+    <style name="Text.LabelSmall" parent="TextAppearance.Material3.LabelSmall">
+        <item name="android:textSize">12sp</item>
+        <item name="android:textColor">?attr/colorOnSurfaceVariant</item>
+    </style>
+
+    <!-- 筛选 chip、按钮 14px · 500 -->
+    <style name="Text.LabelLarge" parent="TextAppearance.Material3.LabelLarge">
+        <item name="android:textSize">14sp</item>
+        <item name="android:textColor">?attr/colorOnSurface</item>
+    </style>
+
+    <!-- 分区标题「显示与排序」 13px · 600 · letter-spacing .4px · 主色 -->
+    <style name="Text.SectionHeader" parent="TextAppearance.Material3.LabelLarge">
+        <item name="android:textSize">13sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">0.03</item>
+        <item name="android:textColor">?attr/colorPrimary</item>
+    </style>
+
+    <!-- 列表的字母分组头 13px · 600 · letter-spacing .6px · 主色 -->
+    <style name="Text.IndexLetter" parent="TextAppearance.Material3.LabelLarge">
+        <item name="android:textSize">13sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">0.046</item>
+        <item name="android:textColor">?attr/colorPrimary</item>
+    </style>
+
+</resources>

@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>管理后台</title>
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+
+<!-- ============ 首次引导：还没有任何管理员时才出现 ============ -->
+<div id="bootstrap" class="wrap narrow hidden" style="padding-top:48px">
+  <h1>创建第一个管理员</h1>
+  <p class="sub">这台服务器还没有管理员。创建之后这个入口会<b>永久关闭</b>。</p>
+  <div class="card">
+    <label>用户名</label>
+    <input id="bsUser" spellcheck="false" autocomplete="username">
+    <label>口令（至少 12 位）</label>
+    <input id="bsPass" type="password" autocomplete="new-password">
+    <label>再输一遍</label>
+    <input id="bsPass2" type="password" autocomplete="new-password">
+    <div class="actions"><button id="bsBtn" class="primary grow">创建</button></div>
+    <div id="bsMsg"></div>
+  </div>
+  <div class="note">
+    以后再加管理员只能在服务器上跑
+    <span class="mono">npm run admin:create &lt;用户名&gt;</span>。
+    这样即使后台被人登进去，也没法悄悄加一个新管理员。
+  </div>
+</div>
+
+<!-- ============ 登录 ============ -->
+<div id="login" class="wrap narrow hidden" style="padding-top:48px">
+  <h1>管理后台</h1>
+  <p class="sub">管理账号、邀请码和服务器状态。</p>
+  <div class="card">
+    <label>用户名</label>
+    <input id="lgUser" spellcheck="false" autocomplete="username">
+    <label>口令</label>
+    <input id="lgPass" type="password" autocomplete="current-password">
+    <div class="actions"><button id="lgBtn" class="primary grow">登录</button></div>
+    <div id="lgMsg"></div>
+  </div>
+  <div class="note">
+    <b>管理员看不到任何联系人内容。</b>服务器上只有密文，解密密钥只存在用户的主口令里。
+    这里能看到的是元数据：账号名、记录条数、占用空间、设备活跃时间。
+  </div>
+  <p class="hint"><a href="/">← 返回</a></p>
+</div>
+
+<!-- ============ 主界面 ============ -->
+<div id="app" class="hidden">
+  <div class="topbar">
+    <span class="brand">管理后台</span>
+    <div class="tabs">
+      <button data-view="accounts" class="active">账号</button>
+      <button data-view="invites">邀请码</button>
+      <button data-view="stats">服务器</button>
+      <button data-view="security">安全</button>
+    </div>
+    <div class="spacer"></div>
+    <span id="adminName" style="font-size:13px;color:var(--text-dim)"></span>
+    <button id="logoutBtn" class="ghost">退出</button>
+  </div>
+
+  <div class="wrap">
+
+    <!-- 账号 -->
+    <div id="viewAccounts">
+      <p class="sub">
+        每个账号的元数据。<b>内容看不到</b> —— 那些字节是用用户主口令派生的密钥加密的。
+      </p>
+      <div class="card tight" id="accountTable"></div>
+    </div>
+
+    <!-- 邀请码 -->
+    <div id="viewInvites" class="hidden">
+      <p class="sub">没有邀请码就注册不了新账号。生成的码<b>只显示一次</b>，库里只存哈希。</p>
+      <div class="card">
+        <h3>生成新的</h3>
+        <div class="row wrap-row">
+          <div class="grow">
+            <label>备注（给自己看的）</label>
+            <input id="invLabel" placeholder="例如：给老王的">
+          </div>
+          <div style="width:120px">
+            <label>可用次数</label>
+            <input id="invUses" type="number" value="1" min="0" max="1000">
+          </div>
+          <div style="width:120px">
+            <label>有效天数</label>
+            <input id="invDays" type="number" value="7" min="1" max="3650" placeholder="留空=永久">
+          </div>
+        </div>
+        <div class="hint">次数填 0 表示不限次数。天数留空表示永不过期。</div>
+        <div class="actions"><button id="invCreate" class="primary">生成</button></div>
+        <div id="invResult"></div>
+      </div>
+      <div class="card tight" id="inviteTable"></div>
+    </div>
+
+    <!-- 服务器 -->
+    <div id="viewStats" class="hidden">
+      <div id="statsBox"></div>
+    </div>
+
+    <!-- 安全 -->
+    <div id="viewSecurity" class="hidden">
+      <div class="card">
+        <h3>修改我的口令</h3>
+        <label>当前口令</label>
+        <input id="pwOld" type="password" autocomplete="current-password">
+        <label>新口令（至少 12 位）</label>
+        <input id="pwNew" type="password" autocomplete="new-password">
+        <div class="actions"><button id="pwBtn" class="primary">修改</button></div>
+        <div class="hint">改完会踢掉你自己在其它地方的登录会话。</div>
+      </div>
+      <div class="card">
+        <h3>管理员会话</h3>
+        <div id="sessionTable"></div>
+      </div>
+      <div class="card">
+        <h3>最近的登录失败</h3>
+        <p class="sub">同一个来源反复失败通常意味着有人在爆破。</p>
+        <div id="failTable"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div id="modalRoot"></div>
+<script type="module" src="/admin/app.js"></script>
+</body>
+</html>

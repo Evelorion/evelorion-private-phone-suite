@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 收藏格子里的拨号按钮，36 高圆角 12，primary_container。 -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android" android:color="?attr/colorOnPrimaryContainer">
+    <item android:id="@android:id/mask">
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/fav_action_radius" />
+            <solid android:color="#FFFFFF" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/fav_action_radius" />
+            <solid android:color="?attr/colorPrimaryContainer" />
+        </shape>
+    </item>
+</ripple>

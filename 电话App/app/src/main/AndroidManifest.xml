@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+      成为系统默认电话应用所需的一组权限。
+
+      少一条的后果都很具体：
+        READ_PHONE_STATE     拿不到通话状态，来电屏起不来
+        CALL_PHONE           拨号盘按了没反应
+        ANSWER_PHONE_CALLS   自己的接听按钮点不动（只能让用户去系统界面接）
+        MANAGE_OWN_CALLS     Telecom 不认这个 App
+        READ_CALL_LOG        最近通话是空的
+    -->
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+    <uses-permission android:name="android.permission.READ_PHONE_NUMBERS" />
+    <uses-permission android:name="android.permission.CALL_PHONE" />
+    <uses-permission android:name="android.permission.ANSWER_PHONE_CALLS" />
+    <uses-permission android:name="android.permission.MANAGE_OWN_CALLS" />
+    <uses-permission android:name="android.permission.READ_CALL_LOG" />
+    <uses-permission android:name="android.permission.WRITE_CALL_LOG" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <!-- 读通讯录的加密联系人，以及向它要 calls 子密钥 -->
+    <uses-permission android:name="com.evelorion.permission.READ_PRIVATE_CONTACTS" />
+    <uses-permission android:name="com.evelorion.permission.VAULT_BRIDGE" />
+
+    <!--
+      **这两条必须和通讯录里的声明逐字一致。**
+
+      自定义权限的规则是：请求一个当前没有任何已装应用定义过的权限时，
+      请求会被静默丢弃，而且之后定义方装上也**不会**补授予。
+      只有两个 App 都声明，才没有「必须先装通讯录再装电话」这种顺序依赖。
+
+      顺带一个好处：Android 只允许签名相同的包声明同名权限。签名不一致时
+      第二个 App 会直接 INSTALL_FAILED_DUPLICATE_PERMISSION ——
+      把「两个 App 必须同签名」从一个隐性前提变成安装时就能看见的报错。
+    -->
+    <permission
+        android:name="com.evelorion.permission.READ_PRIVATE_CONTACTS"
+        android:description="@string/permission_read_private_contacts_desc"
+        android:label="@string/permission_read_private_contacts_label"
+        android:protectionLevel="signature" />
+
+    <permission
+        android:name="com.evelorion.permission.VAULT_BRIDGE"
+        android:description="@string/permission_vault_bridge_desc"
+        android:label="@string/permission_vault_bridge_label"
+        android:protectionLevel="signature" />
+
+    <!-- 查询默认拨号器角色、以及跳去通讯录时需要能看见对方包 -->
+    <queries>
+        <package android:name="com.evelorion.contacts" />
+        <package android:name="com.evelorion.contacts.debug" />
+        <intent>
+            <action android:name="android.intent.action.DIAL" />
+        </intent>
+    </queries>
+
+    <application
+        android:name=".PhoneApplication"
+        android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.PhoneM3">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:windowSoftInputMode="adjustResize"
+            android:theme="@style/Theme.PhoneM3">
+
+            <!-- 启动器 -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!--
+              下面这三组是「能被选成默认电话应用」的硬性条件。
+              少了任何一组，系统的「默认应用 → 电话应用」列表里就没有这个 App，
+              而且不会有任何提示说明原因。
+            -->
+            <intent-filter>
+                <action android:name="android.intent.action.DIAL" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.DIAL" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="tel" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <action android:name="android.intent.action.CALL_BUTTON" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="tel" />
+            </intent-filter>
+        </activity>
+
+        <!-- 崩溃详情页。exported=false，只能自家启动。 -->
+        <activity
+            android:name=".ui.CrashActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:theme="@android:style/Theme.Material.Light" />
+
+        <!--
+          来电 / 通话中界面。
+
+          单独一个 Activity 而不是复用 MainActivity：来电要在锁屏上方显示，
+          需要 showWhenLocked / turnScreenOn，而这些属性会影响整个 Activity 的行为，
+          不该让日常的拨号界面也带上。
+        -->
+        <activity
+            android:name=".telecom.CallActivity"
+            android:exported="false"
+            android:launchMode="singleInstance"
+            android:showOnLockScreen="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:excludeFromRecents="true"
+            android:taskAffinity="com.evelorion.phone.call"
+            android:theme="@style/Theme.PhoneM3" />
+
+        <!--
+          InCallService 是「默认电话应用」的核心：被选中之后，系统把所有通话
+          都交给它来显示界面。
+
+          android.telecom.IN_CALL_SERVICE_UI = true 表示「我自己画通话界面」，
+          不写的话系统仍然用自带界面，ZIP 里那两块来电屏和通话屏就永远看不到。
+        -->
+        <service
+            android:name=".telecom.PhoneInCallService"
+            android:exported="true"
+            android:permission="android.permission.BIND_INCALL_SERVICE">
+            <meta-data
+                android:name="android.telecom.IN_CALL_SERVICE_UI"
+                android:value="true" />
+            <meta-data
+                android:name="android.telecom.INCLUDE_EXTERNAL_CALL_PROVIDER"
+                android:value="true" />
+            <intent-filter>
+                <action android:name="android.telecom.InCallService" />
+            </intent-filter>
+        </service>
+    </application>
+</manifest>

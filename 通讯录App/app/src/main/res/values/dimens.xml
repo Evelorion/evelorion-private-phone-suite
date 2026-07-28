@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  尺寸。设计稿是 412×892 的 mockup，里面的 px 按 1:1 当 dp 用。
+
+  **只放设计稿里明确出现过的值。** 没出现过的不要在这里编 ——
+  编出来的值会和设计稿悄悄分叉，而且没人知道它是从哪来的。
+  每一条后面标了它在设计稿里的出处。
+-->
+<resources>
+
+    <!-- ═══════ 主页顶部 ═══════ -->
+    <!-- padding:8px 16px 4px -->
+    <dimen name="header_padding_horizontal">16dp</dimen>
+    <dimen name="header_padding_top">8dp</dimen>
+    <!-- 「我」头像 width/height:40px, margin-top:6px -->
+    <dimen name="profile_avatar_size">40dp</dimen>
+    <dimen name="profile_avatar_margin_top">6dp</dimen>
+    <!-- 副标题 margin-top:2px -->
+    <dimen name="subtitle_margin_top">2dp</dimen>
+
+    <!-- ═══════ 停靠搜索栏 ═══════ -->
+    <!-- height:56px; border-radius:28px; gap:14px; padding:0 20px; margin-top:14px -->
+    <dimen name="search_bar_height">56dp</dimen>
+    <dimen name="search_bar_radius">28dp</dimen>
+    <dimen name="search_bar_margin_top">14dp</dimen>
+    <dimen name="search_bar_padding_horizontal">20dp</dimen>
+    <dimen name="search_bar_icon_gap">14dp</dimen>
+    <!-- 搜索图标 font-size:22px -->
+    <dimen name="search_bar_icon_size">22dp</dimen>
+
+    <!-- ═══════ 筛选 chip ═══════ -->
+    <!-- height:36px; padding:0 16px; border-radius:18px; gap:8px -->
+    <dimen name="chip_height">36dp</dimen>
+    <dimen name="chip_radius">18dp</dimen>
+    <dimen name="chip_padding_horizontal">16dp</dimen>
+    <dimen name="chip_gap">8dp</dimen>
+
+    <!-- ═══════ 列表行 ═══════ -->
+    <!-- 规范型是宽松密度：avSize 44px / avFont 17px / rowPad 10px 16px / gap 16px -->
+    <dimen name="avatar_size">44dp</dimen>
+    <dimen name="avatar_text_size">17sp</dimen>
+    <dimen name="row_padding_horizontal">16dp</dimen>
+    <dimen name="row_padding_vertical">10dp</dimen>
+    <dimen name="row_gap">16dp</dimen>
+    <!-- border-radius:20px（按下时的 ripple 圆角） -->
+    <dimen name="row_radius">20dp</dimen>
+    <!-- 紧凑密度：设置里的开关会切到这一组 -->
+    <dimen name="avatar_size_dense">36dp</dimen>
+    <dimen name="avatar_text_size_dense">15sp</dimen>
+    <dimen name="row_padding_horizontal_dense">14dp</dimen>
+    <dimen name="row_padding_vertical_dense">6dp</dimen>
+    <!-- 收藏星标 font-size:19px -->
+    <dimen name="row_star_size">19dp</dimen>
+
+    <!-- ═══════ 字母分组头 ═══════ -->
+    <!-- padding:14px 16px 6px -->
+    <dimen name="index_letter_padding_top">14dp</dimen>
+    <dimen name="index_letter_padding_bottom">6dp</dimen>
+
+    <!-- ═══════ 扩展 FAB ═══════ -->
+    <!-- 规范型：height 60px / radius 20px / padding 0 22px / right 18px bottom 18px
+         gap 12px / 图标 26px / 文字 15px；底色 primary_container -->
+    <dimen name="fab_height">60dp</dimen>
+    <dimen name="fab_radius">20dp</dimen>
+    <dimen name="fab_padding_horizontal">22dp</dimen>
+    <dimen name="fab_margin">18dp</dimen>
+    <dimen name="fab_icon_size">26dp</dimen>
+    <dimen name="fab_icon_gap">12dp</dimen>
+    <dimen name="fab_text_size">15sp</dimen>
+
+    <!-- ═══════ 底部导航 ═══════ -->
+    <!-- 规范型：height 80px / radius 0 / 无阴影 / 底色 surface_container_low -->
+    <dimen name="nav_height">80dp</dimen>
+    <!-- 胶囊 64×32 圆角 16，图标 24 -->
+    <dimen name="nav_pill_width">64dp</dimen>
+    <dimen name="nav_pill_height">32dp</dimen>
+    <dimen name="nav_pill_radius">16dp</dimen>
+    <dimen name="nav_icon_size">24dp</dimen>
+    <dimen name="nav_label_margin_top">4dp</dimen>
+
+    <!-- 列表底部留白，让最后一行不被 FAB 和导航挡住（设计稿 padding-bottom:96px） -->
+    <dimen name="list_bottom_inset">96dp</dimen>
+
+    <!-- ═══════ 详情页 ═══════ -->
+    <!-- 头像 104px 圆角 34%（≈35dp），字号 42px；姓名 margin-top 16px -->
+    <dimen name="detail_avatar_size">104dp</dimen>
+    <dimen name="detail_avatar_radius">35dp</dimen>
+    <dimen name="detail_avatar_text_size">42sp</dimen>
+    <dimen name="detail_name_margin_top">16dp</dimen>
+    <!-- 快捷动作 64×56 圆角 20，间距 14，图标 24，标签 12px 间距 8 -->
+    <dimen name="detail_action_width">64dp</dimen>
+    <dimen name="detail_action_height">56dp</dimen>
+    <dimen name="detail_action_radius">20dp</dimen>
+    <dimen name="detail_action_gap">14dp</dimen>
+    <dimen name="detail_action_label_margin">8dp</dimen>
+    <dimen name="detail_actions_margin_top">24dp</dimen>
+    <!-- 底部「编辑联系人」按钮 height:56px radius:28px -->
+    <dimen name="filled_button_height">56dp</dimen>
+    <dimen name="filled_button_radius">28dp</dimen>
+
+    <!-- ═══════ 卡片 ═══════ -->
+    <!-- 详情信息卡 / 设置分组卡 / 收藏格子都是 border-radius:26px，左右 margin 16px -->
+    <dimen name="card_radius">26dp</dimen>
+    <dimen name="card_margin_horizontal">16dp</dimen>
+    <!-- 信息行 padding:16px 20px，图标与内容 gap:18px -->
+    <dimen name="card_row_padding_horizontal">20dp</dimen>
+    <dimen name="card_row_padding_vertical">16dp</dimen>
+    <dimen name="card_row_gap">18dp</dimen>
+    <dimen name="card_row_min_height">64dp</dimen>
+
+    <!-- ═══════ 群组行 ═══════ -->
+    <!-- 图标块 42×42 圆角 14；行 padding 12px 8px，gap 16px -->
+    <dimen name="group_icon_size">42dp</dimen>
+    <dimen name="group_icon_radius">14dp</dimen>
+    <dimen name="group_row_padding_vertical">12dp</dimen>
+
+    <!-- ═══════ 收藏格子 ═══════ -->
+    <!-- grid gap:12px；卡 padding:18px 16px；头像 52px；动作按钮 36 高圆角 12 -->
+    <dimen name="fav_grid_gap">12dp</dimen>
+    <dimen name="fav_card_padding_horizontal">16dp</dimen>
+    <dimen name="fav_card_padding_vertical">18dp</dimen>
+    <dimen name="fav_avatar_size">52dp</dimen>
+    <dimen name="fav_avatar_text_size">21sp</dimen>
+    <dimen name="fav_action_height">36dp</dimen>
+    <dimen name="fav_action_radius">12dp</dimen>
+    <dimen name="fav_action_icon_size">19dp</dimen>
+
+    <!-- ═══════ 编辑页 ═══════ -->
+    <!-- outlined 输入框：min-height 56px / radius 14px / 描边 1.5px / 间距 22px
+         头像 96px 圆角 34%；相机角标 38×38 圆角 12 -->
+    <dimen name="field_min_height">56dp</dimen>
+    <dimen name="field_radius">14dp</dimen>
+    <dimen name="field_stroke">2dp</dimen>
+    <dimen name="field_gap">22dp</dimen>
+    <dimen name="edit_avatar_size">96dp</dimen>
+    <dimen name="edit_avatar_radius">33dp</dimen>
+    <dimen name="edit_camera_size">38dp</dimen>
+    <dimen name="edit_camera_radius">12dp</dimen>
+
+    <!-- ═══════ 搜索页 ═══════ -->
+    <!-- 空态图标块 88×88 圆角 30%；结果行头像 44 -->
+    <dimen name="empty_icon_box">88dp</dimen>
+    <dimen name="empty_icon_radius">26dp</dimen>
+    <dimen name="empty_icon_size">40dp</dimen>
+
+    <!-- ═══════ 通用 ═══════ -->
+    <!-- 图标按钮触摸区 48（M3 最低要求），图标本体 24 -->
+    <dimen name="icon_button_size">48dp</dimen>
+    <dimen name="icon_size">24dp</dimen>
+    <!-- 标签 / 历史词 chip：height 34~36 圆角 12 -->
+    <dimen name="tag_height">34dp</dimen>
+    <dimen name="tag_radius">12dp</dimen>
+    <dimen name="tag_padding_horizontal">14dp</dimen>
+    <!-- 开关：轨道 52×32 圆角 16；滑块 选中 24 未选中 16 -->
+    <dimen name="switch_track_width">52dp</dimen>
+    <dimen name="switch_track_height">32dp</dimen>
+
+</resources>

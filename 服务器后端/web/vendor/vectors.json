@@ -1,0 +1,23 @@
+{
+  "note": "Kotlin 端必须复现这些值",
+  "saltHex": "000102030405060708090a0b0c0d0e0f",
+  "dekHex": "202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f",
+  "recoveryKeyHex": "404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f",
+  "uuid": "11111111-2222-3333-4444-555555555555",
+  "argon2id_masterKeyHex": "853b272a44db1421c02962669a55eb0994f3cab385ed1c4c79253eee19bab49e",
+  "kekHex": "e07eecc9166b24f2f4e4e294248cb12b7da8b08e6209dea3d951a519d0bfa1ca",
+  "authSecretHex": "4aa78e28ce458092f0541343b0ba904541488ac2fc6b9f397e3d7c32dd6f50c3",
+  "recoveryKekHex": "d7ffc1c3e583edf0c3993a2dd2ab6cba86022cedc216e621c18f1725706feb79",
+  "recordKeyHex": "9fce60649c350b60bcd047d2fcfae91360a14ac4119c5a874cbe3cb812ff0f20",
+  "recordAadHex": "111111112222333344445555555555550000000701",
+  "indexKeyHex": "1472197bb3d90ded672e2fb104f06ed1689d97b6ef6fad2b848625a13a7a8d19",
+  "blindIndex_plus8613800138000": "e8a0b7d9596c6d33da487ac705a5e179",
+  "recoveryCode": "810M-4GT4-8N34-EJ29-995M-RKAE-9X85-2MJK-AHAN-CNTR-B5D5-PQ2X-BSFG-S8N4",
+  "canonicalJson": "{\"a\":[3,{\"y\":\"x\",\"z\":null}],\"b\":1,\"starred\":false}",
+  "padHex_5bytes": "68656c6c6f800000...len=256",
+  "blobIdOfAAAA": "c597efb8dbab44f112d90f12bd1721e19e5ae1d63f2d690c2d8f6a9ceb3c114e",
+  "itemId_phones_e164": "a8e579e94ef8bcc266a9de2988dbfada",
+  "itemId_groups_family": "a4101691260cfeb21c09e90cd0c2ef95",
+  "collectionKey_calls": "857d31f42c57462905cd7bcd9dc6de819a83e03d6fe300a08f6dd25742dc2b70",
+  "manifest_twoEntries": "RlNZTQEAAAACAAAAAAAAQACAAAAAAAAAAQAAAAERERERIiIzM0REVVVVVVVVAAAABw=="
+}

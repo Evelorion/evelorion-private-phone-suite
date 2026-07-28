@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 停靠搜索栏。圆角 28 = 高度一半，M3 里叫 full shape。 -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android" android:color="?attr/colorOnSurfaceVariant">
+    <item android:id="@android:id/mask">
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/search_bar_radius" />
+            <solid android:color="#FFFFFF" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/search_bar_radius" />
+            <solid android:color="?attr/colorSurfaceContainerHigh" />
+        </shape>
+    </item>
+</ripple>

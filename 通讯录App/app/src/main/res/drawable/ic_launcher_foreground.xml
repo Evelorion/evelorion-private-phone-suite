@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 启动图标前景：一个人形，和 App 内的 ic_person 同一套 Material Symbols。 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group android:scaleX="0.4" android:scaleY="0.4"
+        android:translateX="32.4" android:translateY="32.4">
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M54,54m-27,0a27,27 0,1 1,54 0a27,27 0,1 1,-54 0" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M18,108v-9c0,-12 16,-21 36,-21s36,9 36,21v9z" />
+    </group>
+</vector>

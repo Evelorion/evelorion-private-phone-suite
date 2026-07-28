@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Material 3 颜色 token —— 直接从设计稿的 CSS 变量抠出来的，不是手抄。
+
+  设计稿的短名（CSS 里带两个连字符前缀）和这里的语义名对应关系：
+      p   → primary                  sf  → surface
+      op  → on_primary               c1  → surface_container_low
+      pc  → primary_container        c2  → surface_container
+      opc → on_primary_container     c3  → surface_container_high
+      sc  → secondary_container      c4  → surface_container_highest
+      osc → on_secondary_container   os  → on_surface
+      tc  → tertiary_container       osv → on_surface_variant
+      otc → on_tertiary_container    ol  → outline
+                                     olv → outline_variant
+
+  用语义名而不是 purple_500 这类描述颜色本身的名字：换配色时语义名不用动，
+  描述性的名字会立刻变成谎话。
+
+  深色值在 values-night/colors.xml，两份的 name 必须一一对应。
+-->
+<resources>
+
+    <color name="m3_primary">#6750A4</color>
+    <color name="m3_on_primary">#FFFFFF</color>
+    <color name="m3_primary_container">#EADDFF</color>
+    <color name="m3_on_primary_container">#21005D</color>
+    <color name="m3_secondary_container">#E8DEF8</color>
+    <color name="m3_on_secondary_container">#1D192B</color>
+    <color name="m3_tertiary_container">#FFD8E4</color>
+    <color name="m3_on_tertiary_container">#31111D</color>
+    <color name="m3_surface">#FEF7FF</color>
+    <color name="m3_surface_container_low">#F7F2FA</color>
+    <color name="m3_surface_container">#F3EDF7</color>
+    <color name="m3_surface_container_high">#ECE6F0</color>
+    <color name="m3_surface_container_highest">#E6E0E9</color>
+    <color name="m3_on_surface">#1D1B20</color>
+    <color name="m3_on_surface_variant">#49454F</color>
+    <color name="m3_outline">#79747E</color>
+    <color name="m3_outline_variant">#CAC4D0</color>
+    <color name="m3_error">#B3261E</color>
+
+</resources>

@@ -1,0 +1,290 @@
+/* 共用样式。刻意保持简单：一个文件，没有构建步骤，没有外部字体。 */
+
+:root {
+  --bg: #0f1215;
+  --surface: #171b20;
+  --surface-2: #1e242b;
+  --border: #2a323b;
+  --text: #e6ebf0;
+  --text-dim: #93a1b0;
+  --accent: #4a9d7f;
+  --accent-hover: #58b492;
+  --danger: #c85a54;
+  --warn: #c9a227;
+  --radius: 10px;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f5f7f9;
+    --surface: #ffffff;
+    --surface-2: #eef1f4;
+    --border: #d8dee5;
+    --text: #1b2228;
+    --text-dim: #5d6b7a;
+    --accent: #2f7a5f;
+    --accent-hover: #256349;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+        "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+}
+
+a { color: var(--accent); }
+
+.wrap { max-width: 1080px; margin: 0 auto; padding: 24px 20px 64px; }
+.narrow { max-width: 460px; }
+
+h1 { font-size: 22px; margin: 0 0 4px; }
+h2 { font-size: 17px; margin: 28px 0 12px; }
+h3 { font-size: 15px; margin: 0 0 8px; }
+.sub { color: var(--text-dim); font-size: 13px; margin: 0 0 24px; }
+
+/* ---------- 卡片 ---------- */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 16px;
+}
+.card.tight { padding: 14px 16px; }
+
+/* ---------- 表单 ---------- */
+label { display: block; font-size: 13px; color: var(--text-dim); margin: 14px 0 5px; }
+input, select, textarea {
+  width: 100%;
+  padding: 9px 11px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+}
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+textarea { resize: vertical; min-height: 72px; }
+
+button {
+  padding: 9px 16px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+button:hover:not(:disabled) { border-color: var(--accent); }
+button:disabled { opacity: .45; cursor: default; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+button.primary:hover:not(:disabled) { background: var(--accent-hover); }
+button.danger { color: var(--danger); border-color: var(--danger); background: transparent; }
+button.ghost { background: transparent; border-color: transparent; color: var(--text-dim); padding: 4px 8px; }
+button.ghost:hover { color: var(--text); }
+button.sm { padding: 4px 10px; font-size: 13px; }
+
+.row { display: flex; gap: 8px; align-items: center; }
+.row.wrap-row { flex-wrap: wrap; }
+.grow { flex: 1; min-width: 0; }
+.actions { display: flex; gap: 8px; margin-top: 20px; }
+.spacer { flex: 1; }
+
+/* ---------- 提示 ---------- */
+.note, .warn, .err, .ok {
+  font-size: 13px;
+  padding: 11px 13px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  margin: 12px 0;
+}
+.warn { border-color: var(--warn); }
+.err  { border-color: var(--danger); }
+.ok   { border-color: var(--accent); }
+.hint { font-size: 12px; color: var(--text-dim); margin-top: 5px; }
+
+/* ---------- 列表 ---------- */
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th {
+  text-align: left; font-weight: 600; font-size: 12px; color: var(--text-dim);
+  padding: 8px 10px; border-bottom: 1px solid var(--border); white-space: nowrap;
+}
+td { padding: 9px 10px; border-bottom: 1px solid var(--border); }
+tr:last-child td { border-bottom: none; }
+td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+.item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 14px; border-bottom: 1px solid var(--border); cursor: pointer;
+}
+.item:last-child { border-bottom: none; }
+.item:hover { background: var(--surface-2); }
+.item .name { font-weight: 500; }
+.item .meta { font-size: 12px; color: var(--text-dim); }
+
+.avatar {
+  width: 34px; height: 34px; border-radius: 50%;
+  background: var(--surface-2); border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; color: var(--text-dim); flex-shrink: 0;
+}
+
+.badge {
+  display: inline-block; padding: 1px 7px; border-radius: 20px;
+  font-size: 11px; border: 1px solid var(--border); color: var(--text-dim);
+}
+.badge.on   { border-color: var(--accent); color: var(--accent); }
+.badge.off  { border-color: var(--danger); color: var(--danger); }
+.badge.warn { border-color: var(--warn); color: var(--warn); }
+
+/* ---------- 顶栏 ---------- */
+.topbar {
+  display: flex; align-items: center; gap: 14px;
+  padding: 12px 20px; border-bottom: 1px solid var(--border); background: var(--surface);
+}
+.topbar .brand { font-weight: 600; }
+.tabs { display: flex; gap: 4px; }
+.tabs button { background: transparent; border-color: transparent; color: var(--text-dim); }
+.tabs button.active { color: var(--text); background: var(--surface-2); border-color: var(--border); }
+
+/* ---------- 模态 ---------- */
+.modal-bg {
+  position: fixed; inset: 0; background: rgba(0,0,0,.55);
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 40px 16px; overflow-y: auto; z-index: 50;
+}
+.modal {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 22px; width: 100%; max-width: 560px;
+}
+
+/* ---------- 其它 ---------- */
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.code-block {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+  padding: 14px; font-size: 14px; word-break: break-all; user-select: all; line-height: 1.9;
+}
+.empty { text-align: center; color: var(--text-dim); padding: 48px 20px; font-size: 14px; }
+.spin { display: inline-block; width: 13px; height: 13px; border: 2px solid var(--border);
+        border-top-color: var(--accent); border-radius: 50%; animation: sp .7s linear infinite; }
+@keyframes sp { to { transform: rotate(360deg); } }
+.hidden { display: none !important; }
+
+.toast {
+  position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%);
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  padding: 11px 18px; font-size: 14px; z-index: 100; max-width: 90vw;
+}
+.toast.err { border-color: var(--danger); }
+
+
+/* ══════════════════════════════════════════════════════════
+   开关行
+
+   全局的 `input { width: 100% }` 是给文本框用的，复选框会被撑成
+   整行宽 —— 表现是复选框飘在行中间、旁边的文字被挤到最右。
+   这里显式把它拉回原生尺寸。
+   ══════════════════════════════════════════════════════════ */
+
+.switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 0;
+  border-top: 1px solid var(--line, var(--border));
+}
+.switch-row:first-of-type { border-top: none; }
+
+.switch-row .row-text { flex: 1; min-width: 0; }
+.switch-row .row-title { font-weight: 600; font-size: 14px; }
+.switch-row .row-desc {
+  font-size: 12.5px;
+  color: var(--text-dim);
+  margin-top: 3px;
+  line-height: 1.5;
+}
+
+/* 开关本体。用 checkbox + CSS 画，不引组件库 */
+.switch {
+  position: relative;
+  flex: none;
+  width: 46px;
+  height: 26px;
+  cursor: pointer;
+}
+.switch input {
+  /* 关键：抵消全局的 width:100% */
+  width: 46px;
+  height: 26px;
+  margin: 0;
+  padding: 0;
+  opacity: 0;
+  position: absolute;
+  inset: 0;
+  cursor: pointer;
+  z-index: 1;
+}
+.switch .track {
+  position: absolute;
+  inset: 0;
+  background: var(--border);
+  border-radius: 13px;
+  transition: background .18s;
+}
+.switch .thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform .18s;
+  box-shadow: 0 1px 3px rgba(0,0,0,.25);
+}
+.switch input:checked ~ .track { background: var(--accent); }
+.switch input:checked ~ .thumb { transform: translateX(20px); }
+.switch input:disabled ~ .track { opacity: .4; }
+.switch input:disabled { cursor: not-allowed; }
+
+/* 状态徽标 */
+.badge {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 11px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.badge.on  { background: var(--accent); color: #fff; }
+.badge.off { background: var(--border); color: var(--text-dim); }
+
+/* 折叠说明。安全功能的边界必须写清楚，但不该一上来占半屏 */
+details.note { margin-top: 10px; }
+details.note summary {
+  cursor: pointer;
+  font-size: 12.5px;
+  color: var(--text-dim);
+  user-select: none;
+}
+details.note .body {
+  margin-top: 8px;
+  padding: 10px 12px;
+  background: var(--bg);
+  border-radius: 8px;
+  font-size: 12.5px;
+  line-height: 1.65;
+  color: var(--text-dim);
+}

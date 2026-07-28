@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Material Symbols Rounded · settings
+
+  ⚠ 关于坐标系 —— 这是这套图标最容易踩的坑：
+
+  Google 导出的 Material Symbols SVG 用的是 viewBox="0 -960 960 960"，
+  也就是 **y 从 -960 到 0**（原点在左下角）。
+
+  而 Android 的 VectorDrawable **没有 viewBox 偏移量**，
+  viewportWidth/Height 定义的坐标系固定是 0..960。
+  直接把官方路径贴进来的话，所有负 y 的部分都画在视口外面，
+  屏幕上一个像素都看不到，而且**不报任何错**。
+
+  所以这里用 <group android:translateY="960"> 把整条路径平移回视口内。
+  以后从 fonts.google.com 复制新图标进来，记得也要包这一层。
+
+  另外：**不要写 android:tint="?attr/..."**。主题属性只在带 theme 的
+  上下文里 inflate 才解析得出来，通过 setImageResource() 加载时会解析成 0，
+  变成全透明的着色。颜色一律由调用方给（布局 app:tint / 代码 setColorFilter）。
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="960"
+    android:viewportHeight="960">
+    <group android:translateY="960">
+        <path
+            android:fillColor="@android:color/white"
+            android:pathData="M433,-80q-27,0 -46.5,-18T363,-142l-9,-66q-13,-5 -24.5,-12T307,-235l-62,26q-25,11 -50,2t-39,-32l-47,-82q-14,-23 -8,-49t27,-43l53,-40q-1,-7 -1,-13.5v-27q0,-6.5 1,-13.5l-53,-40q-21,-17 -27,-43t8,-49l47,-82q14,-23 39,-32t50,2l62,26q11,-8 23,-15t24,-12l9,-66q4,-26 23.5,-44t46.5,-18h94q27,0 46.5,18t23.5,44l9,66q13,5 24.5,12t22.5,15l62,-26q25,-11 50,-2t39,32l47,82q14,23 8,49t-27,43l-53,40q1,7 1,13.5v27q0,6.5 -2,13.5l53,40q21,17 27,43t-8,49l-48,82q-14,23 -39,32t-50,-2l-60,-26q-11,8 -23,15t-24,12l-9,66q-4,26 -23.5,44T527,-80h-94ZM482,-340q58,0 99,-41t41,-99q0,-58 -41,-99t-99,-41q-59,0 -99.5,41T342,-480q0,58 40.5,99t99.5,41Z" />
+    </group>
+</vector>
