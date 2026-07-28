@@ -11,10 +11,13 @@
 
 ## 应用预览
 
-<p>
-  <img src="screenshots/phone-app.png" alt="Evelorion Phone dial pad" width="320">
-  <img src="screenshots/contacts-app.png" alt="Evelorion Contacts home" width="320">
-</p>
+### 电话 App
+
+![Evelorion Phone 拨号盘](screenshots/phone-app.png)
+
+### 通讯录 App
+
+![Evelorion Contacts 首页](screenshots/contacts-app.png)
 
 ## 文档
 
