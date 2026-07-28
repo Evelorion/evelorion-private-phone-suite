@@ -280,14 +280,28 @@ class SyncSetupActivity : BaseActivity() {
 
     private fun handleMfa(challenge: VaultManager.MfaRequired) {
         val hasPasskey = "passkey" in challenge.methods
-        val needsCodeToo = challenge.requireAll && "totp" in challenge.methods
+        val hasTotp = "totp" in challenge.methods
         when {
-            hasPasskey && needsCodeToo -> showMfaCodeDialog { code ->
+            hasPasskey && hasTotp && challenge.requireAll -> showMfaCodeDialog { code ->
                 startPasskey(challenge, code)
             }
+            hasPasskey && hasTotp -> showMfaMethodDialog(challenge)
             hasPasskey -> startPasskey(challenge, null)
             else -> showMfaCodeDialog { code -> submit(code) }
         }
+    }
+
+    private fun showMfaMethodDialog(challenge: VaultManager.MfaRequired) {
+        MaterialAlertDialogBuilder(this)
+            .setTitle("选择验证方式")
+            .setItems(arrayOf("验证器代码", "通行密钥")) { _, which ->
+                when (which) {
+                    0 -> showMfaCodeDialog { code -> submit(code) }
+                    1 -> startPasskey(challenge, null)
+                }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
 
     private fun showMfaCodeDialog(onCode: (String) -> Unit) {
