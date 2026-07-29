@@ -144,7 +144,11 @@ class SyncEngine(private val context: Context) {
     private fun detectLocalChanges(dek: ByteArray, api: SyncApi) {
         val groupTitles = context.groupsDB.getGroups().associate { (it.id ?: 0L) to it.title }
         val locals = context.contactsDB.getContacts()
-        val knownByLocalId = dao.getAll().filter { it.localId != 0 }.associateBy { it.localId }
+        val allKnown = dao.getAll()
+        val knownByLocalId = allKnown.filter { it.localId != 0 }.associateBy { it.localId }
+        val seenContentHashes = allKnown
+            .filterNot { it.deletedLocally }
+            .mapNotNullTo(HashSet()) { it.baseHash.takeIf(String::isNotEmpty) }
         val seenLocalIds = HashSet<Int>()
 
         for (local in locals) {
@@ -161,6 +165,8 @@ class SyncEngine(private val context: Context) {
 
             val known = knownByLocalId[localId]
             if (known == null) {
+                // Keep an exact local duplicate, but do not create another cloud record for it.
+                if (!seenContentHashes.add(hash)) continue
                 // 本机新建的联系人，还没有对应的 uuid
                 dao.upsert(
                     SyncRecordEntity(
@@ -173,7 +179,10 @@ class SyncEngine(private val context: Context) {
                     )
                 )
             } else if (known.baseHash != hash) {
+                seenContentHashes.add(hash)
                 dao.upsert(known.copy(dirty = true, updatedAt = System.currentTimeMillis()))
+            } else {
+                seenContentHashes.add(hash)
             }
         }
 

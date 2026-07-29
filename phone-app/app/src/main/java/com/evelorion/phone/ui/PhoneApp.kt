@@ -1,8 +1,11 @@
 package com.evelorion.phone.ui
 
 import android.database.ContentObserver
+import android.app.Activity
 import android.os.Handler
 import android.os.Looper
+import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -19,6 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -110,6 +114,21 @@ fun PhoneApp(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var contactsRevision by remember { mutableStateOf(0) }
+
+    var lastRootBackAt by remember { mutableLongStateOf(0L) }
+    BackHandler {
+        if (state.screen != Screen.Recents) {
+            state.back()
+        } else {
+            val now = System.currentTimeMillis()
+            if (now - lastRootBackAt < 2_000L) {
+                (context as? Activity)?.moveTaskToBack(true)
+            } else {
+                lastRootBackAt = now
+                Toast.makeText(context, "再按一次返回桌面", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
 
     DisposableEffect(context, lifecycleOwner) {
         val contactsObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {

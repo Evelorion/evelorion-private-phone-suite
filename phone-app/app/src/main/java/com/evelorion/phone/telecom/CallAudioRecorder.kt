@@ -26,7 +26,7 @@ import java.util.Locale
 object CallAudioRecorder {
 
     sealed interface Result {
-        data class Saved(val location: String) : Result
+        data class Saved(val location: String, val warning: String = "") : Result
         data class Failed(val reason: String) : Result
     }
 
@@ -36,6 +36,7 @@ object CallAudioRecorder {
     private var recorder: MediaRecorder? = null
     private var output: OutputTarget? = null
     private var appContext: Context? = null
+    private var peakAmplitude = 0
 
     @Synchronized
     fun start(context: Context, number: String): Result {
@@ -61,8 +62,15 @@ object CallAudioRecorder {
         appContext = context.applicationContext
         output = target
         recorder = activeRecorder
+        peakAmplitude = 0
         isRecording = true
         return Result.Saved("录音中")
+    }
+
+    @Synchronized
+    fun sampleAmplitude() {
+        val amplitude = runCatching { recorder?.maxAmplitude ?: 0 }.getOrDefault(0)
+        if (amplitude > peakAmplitude) peakAmplitude = amplitude
     }
 
     @Synchronized
@@ -75,6 +83,8 @@ object CallAudioRecorder {
         output = null
         appContext = null
         isRecording = false
+        val recordedPeak = peakAmplitude
+        peakAmplitude = 0
 
         return runCatching {
             activeRecorder.stop()
@@ -82,7 +92,14 @@ object CallAudioRecorder {
             requireNotNull(target)
             requireNotNull(context)
             target.finish(context)
-            Result.Saved(target.location)
+            Result.Saved(
+                location = target.location,
+                warning = if (recordedPeak == 0) {
+                    "系统没有向第三方电话应用提供可录制的音频；文件已保存，但可能是静音"
+                } else {
+                    ""
+                },
+            )
         }.getOrElse {
             runCatching { activeRecorder.reset() }
             runCatching { activeRecorder.release() }

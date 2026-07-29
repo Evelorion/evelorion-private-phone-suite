@@ -262,11 +262,11 @@ object PhoneData {
 
     /** 和通讯录里的头像用同一组颜色 —— 不一致的话同一个人在两个 App 里颜色不同。 */
     private val AvatarBg = listOf(
-        Color(0xFFEADDFF), Color(0xFFC4EED0), Color(0xFFFFD8E4), Color(0xFFD7E3FF),
-        Color(0xFFFFDDB3), Color(0xFFD3E8E4), Color(0xFFF2DDE1), Color(0xFFE0E0EC),
+        Color(0xFFEADDFF), Color(0xFFD9E2FF), Color(0xFFFFD8E4), Color(0xFFD7E3FF),
+        Color(0xFFFFDDB3), Color(0xFFE8DEF8), Color(0xFFF2DDE1), Color(0xFFE0E0EC),
     )
     private val AvatarFg = listOf(
-        Color(0xFF21005D), Color(0xFF07361C), Color(0xFF31111D), Color(0xFF001B3D),
-        Color(0xFF2B1700), Color(0xFF00201C), Color(0xFF31101B), Color(0xFF1A1B22),
+        Color(0xFF21005D), Color(0xFF102A56), Color(0xFF31111D), Color(0xFF001B3D),
+        Color(0xFF2B1700), Color(0xFF25164A), Color(0xFF31101B), Color(0xFF1A1B22),
     )
 }

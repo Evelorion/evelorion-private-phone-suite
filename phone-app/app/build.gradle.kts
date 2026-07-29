@@ -15,8 +15,8 @@ android {
         applicationId = "com.evelorion.phone"
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
-        versionCode = 2
-        versionName = "1.0.1-preview.2"
+        versionCode = 3
+        versionName = "1.0.1-preview.3"
 
         ksp { arg("room.schemaLocation", "$projectDir/schemas") }
 
@@ -30,7 +30,7 @@ android {
         // 代价说清楚：这个包**装不进 x86 模拟器**，也不支持 32 位老机器。
         // 真要发布给不确定的设备，改成按 ABI 拆分（splits.abi）而不是删掉。
         ndk {
-            abiFilters += listOf("arm64-v8a")
+            abiFilters += listOf("arm64-v8a", "x86_64")
         }
     }
 

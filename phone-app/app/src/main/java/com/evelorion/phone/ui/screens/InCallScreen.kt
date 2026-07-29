@@ -72,6 +72,13 @@ fun InCallScreen() {
     // 静音和免提的真相在系统那边（AudioManager 的路由），不在这里 ——
     // 用本地 remember 记的话，界面会和实际状态脱节：
     // 比如插上耳机，系统把免提关了，而按钮还亮着。
+    LaunchedEffect(recording) {
+        while (CallAudioRecorder.isRecording) {
+            delay(250)
+            CallAudioRecorder.sampleAmplitude()
+        }
+    }
+
     val muted = CallManager.muted
     val speaker = CallManager.speakerOn
 
@@ -142,7 +149,11 @@ fun InCallScreen() {
                 if (recording) {
                     when (val result = CallAudioRecorder.stop()) {
                         is CallAudioRecorder.Result.Saved ->
-                            Toast.makeText(context, "已保存到 ${result.location}", Toast.LENGTH_LONG).show()
+                            Toast.makeText(
+                                context,
+                                result.warning.ifBlank { "已保存到 ${result.location}" },
+                                Toast.LENGTH_LONG,
+                            ).show()
                         is CallAudioRecorder.Result.Failed ->
                             Toast.makeText(context, result.reason, Toast.LENGTH_LONG).show()
                     }
