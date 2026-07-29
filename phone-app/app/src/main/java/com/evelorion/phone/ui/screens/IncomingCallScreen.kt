@@ -59,6 +59,7 @@ fun IncomingCallScreen() {
     var dragging by remember { mutableStateOf(false) }
     val density = LocalDensity.current
     val threshold = with(density) { 80.dp.toPx() }
+    val dragLimit = threshold * 1.25f
 
     val pulse = rememberInfiniteTransition(label = "pulse")
     val ring by pulse.animateFloat(
@@ -159,7 +160,9 @@ fun IncomingCallScreen() {
                                 drag = 0f
                             },
                             onDragCancel = { dragging = false; drag = 0f },
-                            onVerticalDrag = { _, delta -> drag = (drag + delta).coerceIn(-150f, 150f) }
+                            onVerticalDrag = { _, delta ->
+                                drag = (drag + delta).coerceIn(-dragLimit, dragLimit)
+                            }
                         )
                     },
                 contentAlignment = Alignment.Center

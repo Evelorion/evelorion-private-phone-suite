@@ -38,16 +38,43 @@ class MainActivity : ComponentActivity() {
             PhoneM3Theme {
                 val state = androidx.compose.runtime.remember { PhoneState() }
 
+                // 来电只有在本 App 是默认电话应用时才会交给 PhoneInCallService。
+                // 首次启动就申请，不能把这个关键步骤藏在设置页里等用户自己找。
+                val dialerLauncher = rememberLauncherForActivityResult(
+                    ActivityResultContracts.StartActivityForResult()
+                ) {
+                    state.settingsStatus = state.settingsStatus.copy(
+                        isDefaultDialer = DialerRole.isDefault(this@MainActivity)
+                    )
+                }
+                val requestDialerRole = {
+                    if (!DialerRole.isDefault(this@MainActivity)) {
+                        val intent = DialerRole.requestIntent(this@MainActivity)
+                        if (intent != null) dialerLauncher.launch(intent)
+                        else Toast.makeText(
+                            this@MainActivity,
+                            "这台设备上没有可用的设置入口",
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                    }
+                }
+
                 // 运行时权限。没有这些，拨号盘按了没反应、最近通话是空的，
                 // 而且都不会报错 —— 所以一进来就要。
                 val permissionLauncher = rememberLauncherForActivityResult(
                     ActivityResultContracts.RequestMultiplePermissions()
-                ) { }
+                ) {
+                    requestDialerRole()
+                }
                 LaunchedEffect(Unit) {
                     val missing = REQUIRED_PERMISSIONS.filter {
                         ContextCompat.checkSelfPermission(this@MainActivity, it) != PackageManager.PERMISSION_GRANTED
                     }
-                    if (missing.isNotEmpty()) permissionLauncher.launch(missing.toTypedArray())
+                    if (missing.isNotEmpty()) {
+                        permissionLauncher.launch(missing.toTypedArray())
+                    } else {
+                        requestDialerRole()
+                    }
                 }
 
                 // 拨号请求。真正的拨出交给 Telecom，界面不自己跳转 ——
@@ -57,24 +84,9 @@ class MainActivity : ComponentActivity() {
                     if (number.isNotBlank()) placeCall(number)
                 }
 
-                // 请求成为默认电话应用。必须由 Activity 发起 ——
-                // 系统要弹确认框，Composable 里拿不到 Activity 结果回调。
-                val dialerLauncher = rememberLauncherForActivityResult(
-                    ActivityResultContracts.StartActivityForResult()
-                ) {
-                    // 别信 resultCode，某些 ROM 上它不准。直接问 Telecom。
-                    state.settingsStatus = state.settingsStatus.copy(
-                        isDefaultDialer = DialerRole.isDefault(this@MainActivity)
-                    )
-                }
-
                 PhoneApp(
                     state = state,
-                    onRequestDialerRole = {
-                        val intent = DialerRole.requestIntent(this@MainActivity)
-                        if (intent != null) dialerLauncher.launch(intent)
-                        else Toast.makeText(this@MainActivity, "这台设备上没有可用的设置入口", Toast.LENGTH_SHORT).show()
-                    },
+                    onRequestDialerRole = requestDialerRole,
                     onOpenContacts = { openContactsApp() },
                 )
             }

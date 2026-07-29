@@ -89,7 +89,7 @@ fun ContactsScreen(state: PhoneState) {
                             .padding(horizontal = 8.dp)
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(26.dp))
-                            .clickable { state.selectedId = p.id; state.go(Screen.Detail) }
+                            .clickable { state.call(p.id) }
                             .padding(horizontal = 12.dp, vertical = 9.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {

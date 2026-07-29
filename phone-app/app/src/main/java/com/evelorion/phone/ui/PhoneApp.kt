@@ -135,10 +135,22 @@ fun PhoneApp(
     }
 
     androidx.compose.runtime.LaunchedEffect(contactsRevision) {
-        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-            runCatching { PhoneData.load(context) }
-            // 状态也在这里刷 —— 三个来源都要跨进程或读库，全是耗时操作
-            runCatching { state.settingsStatus = PhoneData.settingsStatus(context) }
+        repeat(3) { attempt ->
+            val status = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                runCatching { PhoneData.load(context) }
+                runCatching { PhoneData.settingsStatus(context) }.getOrNull()
+            }
+            status?.let { state.settingsStatus = it }
+
+            // 冷启动时通讯录进程和 Provider 可能还没准备好。以前第一次读空后
+            // 就一直空到用户手动刷新；现在短暂等待后自动重试。
+            if (PhoneData.people.isNotEmpty() ||
+                !ContactsBridge.contactsAppInstalled(context) ||
+                attempt == 2
+            ) {
+                return@LaunchedEffect
+            }
+            kotlinx.coroutines.delay(if (attempt == 0) 300L else 900L)
         }
     }
 
