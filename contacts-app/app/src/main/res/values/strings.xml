@@ -19,6 +19,9 @@
     <string name="sync_never">未同步</string>
     <string name="empty_no_contacts">还没有联系人</string>
     <string name="empty_no_contacts_desc">点右下角「新建」添加第一位联系人</string>
+    <string name="local_contacts_unavailable">本地联系人暂时无法读取</string>
+    <string name="local_contacts_unavailable_desc">数据仍保存在手机的加密数据库中，请稍后重试。云端登录状态不会清空本地联系人。</string>
+    <string name="local_contacts_showing_cached">本地读取失败，仍显示上次内容</string>
     <string name="need_contacts_permission">需要通讯录权限才能显示联系人</string>
     <string name="grant_permission">授予权限</string>
 

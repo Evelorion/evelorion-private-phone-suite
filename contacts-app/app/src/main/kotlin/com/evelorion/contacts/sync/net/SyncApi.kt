@@ -27,6 +27,7 @@ class SyncApi(
     companion object {
         private val JSON = "application/json; charset=utf-8".toMediaType()
         private const val TIMEOUT_SECONDS = 30L
+        private val REFRESH_LOCK = Any()
     }
 
     class HttpFailure(val status: Int, val code: String, override val message: String) : IOException(message)
@@ -221,11 +222,12 @@ class SyncApi(
             "DELETE" -> builder.delete()
             else -> builder.method(method, requestBody ?: "{}".toRequestBody(JSON))
         }
-        if (authenticated) {
+        val requestAccessToken = if (authenticated) {
             val token = session.accessToken
                 ?: throw AuthExpired("本机还没有登录同步账号")
             builder.header("Authorization", "Bearer $token")
-        }
+            token
+        } else null
 
         client.newCall(builder.build()).execute().use { response ->
             val text = response.body?.string().orEmpty()
@@ -238,7 +240,7 @@ class SyncApi(
 
             // 访问令牌过期是常态（15 分钟一换），静默续一次就好
             if (response.code == 401 && authenticated && allowRefresh && code != "device_revoked") {
-                if (refreshTokens()) {
+                if (refreshTokens(requestAccessToken.orEmpty())) {
                     return request(method, path, body, authenticated, allowRefresh = false)
                 }
             }
@@ -261,9 +263,16 @@ class SyncApi(
      * 如果服务端报 refresh_token_reuse，说明令牌可能已经泄露，设备已被吊销，
      * 这里不再重试，直接让用户重新登录。
      */
-    private fun refreshTokens(): Boolean {
-        val refresh = session.refreshToken ?: return false
-        return try {
+    private fun refreshTokens(failedAccessToken: String): Boolean = synchronized(REFRESH_LOCK) {
+        // 另一个同步请求可能已经轮换过一次性刷新令牌。直接使用它刚保存的
+        // access token，不能拿旧 refresh token 再换一次，否则服务端会按重放攻击吊销设备。
+        val currentAccessToken = session.accessToken
+        if (!currentAccessToken.isNullOrEmpty() && currentAccessToken != failedAccessToken) {
+            return@synchronized true
+        }
+
+        val refresh = session.refreshToken ?: return@synchronized false
+        try {
             val json = request(
                 "POST", "/v1/session/refresh",
                 JSONObject().put("refreshToken", refresh),
@@ -276,9 +285,17 @@ class SyncApi(
                 accessExpiresAt = json.optLong("accessExpiresAt", 0),
             )
             true
-        } catch (e: IOException) {
-            session.clearTokens()
-            false
+        } catch (e: HttpFailure) {
+            // 只有服务器明确拒绝刷新凭据，才把本机标成已退出。
+            // 断网、超时、5xx 都只是本次云同步失败，本地联系人必须照常可用。
+            if (e.status == 401 || e.code == "device_revoked" ||
+                e.code == "refresh_token_reuse" || e.code == "invalid_refresh_token"
+            ) {
+                session.clearTokens()
+                false
+            } else {
+                throw e
+            }
         }
     }
 

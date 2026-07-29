@@ -77,7 +77,8 @@ class SessionStore(context: Context) {
         set(value) = prefs.edit().putString(KEY_DEVICE_ID, value).apply()
 
     val isConfigured: Boolean
-        get() = baseUrl.isNotEmpty() && username.isNotEmpty()
+        get() = baseUrl.isNotEmpty() && username.isNotEmpty() &&
+            accessToken != null && refreshToken != null
 
     // ------------------------------------------------------------ 令牌
 

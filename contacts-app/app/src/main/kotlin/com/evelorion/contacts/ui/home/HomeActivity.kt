@@ -1,12 +1,8 @@
 package com.evelorion.contacts.ui.home
 
-import android.Manifest
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.os.Bundle
 import android.view.View
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.evelorion.contacts.R
@@ -46,6 +42,7 @@ class HomeActivity : BaseActivity() {
 
     private var contacts = listOf<UiContact>()
     private var groups = listOf<ContactRepository.UiGroup>()
+    private var loadError: String? = null
     private var tab = TAB_CONTACTS
 
     private val contactsAdapter by lazy { ContactsAdapter { openDetail(it) } }
@@ -63,10 +60,6 @@ class HomeActivity : BaseActivity() {
             },
         )
     }
-
-    private val permissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { load() }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -105,8 +98,6 @@ class HomeActivity : BaseActivity() {
         }
         nav.select(NAV_CONTACTS)
         showTab(TAB_CONTACTS)
-
-        ensurePermission()
     }
 
     /**
@@ -132,7 +123,7 @@ class HomeActivity : BaseActivity() {
 
     override fun onResume() {
         super.onResume()
-        if (hasPermission()) load()
+        load()
 
         // 回到前台顺手同步一次。
         //
@@ -146,27 +137,20 @@ class HomeActivity : BaseActivity() {
         }
     }
 
-    // ------------------------------------------------------------------ 权限
-
-    private fun hasPermission() = ContextCompat.checkSelfPermission(
-        this, Manifest.permission.READ_CONTACTS
-    ) == PackageManager.PERMISSION_GRANTED
-
-    private fun ensurePermission() {
-        if (!hasPermission()) {
-            permissionLauncher.launch(
-                arrayOf(Manifest.permission.READ_CONTACTS, Manifest.permission.WRITE_CONTACTS)
-            )
-        }
-    }
-
     // ------------------------------------------------------------------ 数据
 
     private fun load() {
         io.execute {
-            repo.loadAll { list ->
+            repo.loadAll { list, error ->
                 runOnUiThread {
                     if (isFinishing || isDestroyed) return@runOnUiThread
+                    if (error != null) {
+                        loadError = error
+                        updateSubtitle()
+                        render()
+                        return@runOnUiThread
+                    }
+                    loadError = null
                     contacts = list
                     updateSubtitle()
                     render()
@@ -179,6 +163,13 @@ class HomeActivity : BaseActivity() {
     }
 
     private fun updateSubtitle() {
+        if (loadError != null) {
+            binding.subtitle.setText(
+                if (contacts.isEmpty()) R.string.local_contacts_unavailable
+                else R.string.local_contacts_showing_cached
+            )
+            return
+        }
         val count = NumberFormat.getInstance().format(contacts.size)
         // 同步状态在同步模块接入后才有意义，现在只显示条数 ——
         // 挂一个「未同步」会让人以为出了问题
@@ -202,7 +193,15 @@ class HomeActivity : BaseActivity() {
             binding.list.adapter = contactsAdapter
             binding.list.setPadding(0, 0, 0, resources.getDimensionPixelSize(R.dimen.list_bottom_inset))
             contactsAdapter.submitList(ContactsAdapter.buildRows(contacts))
-            toggleEmpty(contacts.isEmpty(), R.string.empty_no_contacts, R.string.empty_no_contacts_desc)
+            if (contacts.isEmpty() && loadError != null) {
+                toggleEmpty(
+                    true,
+                    R.string.local_contacts_unavailable,
+                    R.string.local_contacts_unavailable_desc,
+                )
+            } else {
+                toggleEmpty(contacts.isEmpty(), R.string.empty_no_contacts, R.string.empty_no_contacts_desc)
+            }
         } else {
             // 收藏页是两列网格；群组那一段跨两列
             val lm = GridLayoutManager(this, 2)

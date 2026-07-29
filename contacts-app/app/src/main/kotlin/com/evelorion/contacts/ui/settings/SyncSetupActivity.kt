@@ -117,7 +117,11 @@ class SyncSetupActivity : BaseActivity() {
             }
             val input = view.findViewById<EditText>(R.id.field_input)
             input.inputType = field.inputType
-            if (field == Field.SERVER) input.setText("https://")
+            when (field) {
+                Field.SERVER -> input.setText(vault.session.baseUrl.ifBlank { "https://" })
+                Field.USERNAME -> input.setText(vault.session.username)
+                else -> Unit
+            }
             fields[field] = input
             binding.fieldsHolder.addView(view)
             // 邀请码只在注册时用，登录时会隐藏，所以要记住这个 View
