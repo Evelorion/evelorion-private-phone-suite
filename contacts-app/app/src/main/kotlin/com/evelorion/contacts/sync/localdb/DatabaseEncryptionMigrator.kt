@@ -38,7 +38,7 @@ object DatabaseEncryptionMigrator {
             return
         }
 
-        if (isAlreadyEncrypted(plainFile, passphrase)) {
+        if (isEncrypted(plainFile)) {
             Log.i(TAG, "$dbName 已经是加密的，跳过")
             return
         }
@@ -97,7 +97,7 @@ object DatabaseEncryptionMigrator {
     fun decryptInPlace(context: Context, dbName: String, passphrase: ByteArray) {
         val encFile = context.getDatabasePath(dbName)
         if (!encFile.exists()) return
-        if (!isAlreadyEncrypted(encFile, passphrase)) return
+        if (!isEncrypted(encFile)) return
 
         val tempFile = File(encFile.parentFile, "$dbName.decrypting")
         tempFile.delete()
@@ -195,25 +195,19 @@ object DatabaseEncryptionMigrator {
     }
 
     /**
-     * 判断一个文件是不是已经被 SQLCipher 加密过。
-     *
-     * 不去读文件头 —— SQLCipher 默认会把前 16 字节的盐也一起随机化，
-     * 没有稳定的魔数可认。直接试着用空口令打开：能打开说明是明文。
+     * Plain SQLite databases always start with this 16-byte header. SQLCipher
+     * replaces it with a random salt, so this check does not need to open or
+     * modify the file and cannot confuse a plaintext database with a bad key.
      */
-    /** 对外版本：这个文件是不是被加密过（能不能用空口令打开）。 */
-    fun isEncrypted(file: File): Boolean = isAlreadyEncrypted(file, ByteArray(0))
+    private val SQLITE_HEADER = "SQLite format 3\u0000".toByteArray(Charsets.US_ASCII)
 
-    private fun isAlreadyEncrypted(file: File, passphrase: ByteArray): Boolean {
-        var db: SQLiteDatabase? = null
-        return try {
-            db = SQLiteDatabase.openOrCreateDatabase(file.absolutePath, "", null, null)
-            db.rawQuery("SELECT count(*) FROM sqlite_master", null).use { it.moveToFirst() }
-            false
-        } catch (e: Exception) {
-            true
-        } finally {
-            runCatching { db?.close() }
-        }
+    fun isEncrypted(file: File): Boolean {
+        if (!file.exists() || file.length() < SQLITE_HEADER.size) return false
+        val header = ByteArray(SQLITE_HEADER.size)
+        val bytesRead = runCatching {
+            file.inputStream().use { it.read(header) }
+        }.getOrElse { return true }
+        return bytesRead != SQLITE_HEADER.size || !header.contentEquals(SQLITE_HEADER)
     }
 
     private fun verifyOrThrow(file: File, passphrase: ByteArray, expectedVersion: Int) {

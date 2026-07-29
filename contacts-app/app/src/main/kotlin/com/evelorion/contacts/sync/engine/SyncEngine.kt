@@ -403,13 +403,24 @@ class SyncEngine(private val context: Context) {
         if (known != null && known.rev == rev && !known.dirty) return false
 
         if (deleted) {
-            // 远端删除。本机也改过的话，保守起见保留本机版本并让用户决定 ——
-            // 静默丢掉用户刚编辑的内容是不可接受的。
-            if (known != null && known.dirty) {
-                dao.upsert(known.copy(rev = rev, conflictFields = "remote_deleted"))
+            // A remote tombstone is not enough evidence to destroy a local contact.
+            // Preserve the local copy and require an explicit local delete.
+            if (known != null && known.localId != 0) {
+                val conflicts = (known.conflictFields.split(",")
+                    .filter(String::isNotBlank) + "remote_deleted")
+                    .distinct()
+                    .joinToString(",")
+                dao.upsert(
+                    known.copy(
+                        rev = rev,
+                        deletedLocally = false,
+                        dirty = false,
+                        conflictFields = conflicts,
+                        updatedAt = System.currentTimeMillis(),
+                    )
+                )
                 return false
             }
-            known?.localId?.takeIf { it != 0 }?.let { deleteLocalContact(it) }
             if (known != null) dao.deleteByUuid(uuid)
             return true
         }

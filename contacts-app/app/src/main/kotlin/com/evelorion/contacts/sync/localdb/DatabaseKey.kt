@@ -75,8 +75,17 @@ object DatabaseKey {
     fun getOrCreate(context: Context, requireScreenLock: Boolean = requiresScreenLock(context)): ByteArray {
         load(context)?.let { return it }
 
-        // 新生成一把。注意这里必须在数据库第一次被打开之前完成，
-        // 否则会出现「用新口令去开已经用旧口令加密过的库」。
+        // Only a genuinely new/plain database may get a new key. If an encrypted
+        // database already exists, generating another key would orphan every contact.
+        val contactsFile = context.getDatabasePath("local_contacts.db")
+        if (isEnabled(context) ||
+            (contactsFile.exists() && DatabaseEncryptionMigrator.isEncrypted(contactsFile))
+        ) {
+            throw KeyMaterialUnavailable(
+                "本机已有加密联系人库，但原数据库口令不可用；已停止打开，数据文件保持不变"
+            )
+        }
+
         val passphrase = Crypto.toHex(Crypto.randomBytes(32)).toByteArray(Charsets.US_ASCII)
         store(context, passphrase, requireScreenLock)
         return passphrase
@@ -85,6 +94,9 @@ object DatabaseKey {
     /** Keystore 暂时用不了（不是密钥丢了）。上层必须原样抛出去，不能当成「没有密钥」。 */
     class KeystoreUnavailable(cause: Throwable?) :
         Exception("Android Keystore 暂时不可用，稍后重试：${cause?.message}", cause)
+
+    class KeyMaterialUnavailable(message: String, cause: Throwable? = null) :
+        Exception(message, cause)
 
     private fun load(context: Context): ByteArray? {
         val stored = prefs(context).getString(KEY_WRAPPED, null)?.takeIf { it.isNotEmpty() } ?: return null
@@ -113,13 +125,17 @@ object DatabaseKey {
                 // 取不到但别名还在（或者连别名都问不出来）——— 属于「暂时不可用」
                 throw KeystoreUnavailable(null)
             }
-            // 别名确实不在了：改了锁屏方式、恢复出厂设置……
-            // 数据库已经永远打不开，清掉标记把这个事实反映出来。
-            prefs(context).edit().clear().apply()
-            return null
+            // Never clear the wrapper or create a replacement key here. The encrypted
+            // database may still be recoverable after restoring the original Keystore.
+            throw KeyMaterialUnavailable(
+                "保护联系人数据库的 Android Keystore 密钥不存在；数据文件未被修改"
+            )
         }
-        val blob = runCatching { Base64.decode(stored, Base64.NO_WRAP) }.getOrNull() ?: return null
-        if (blob.size <= GCM_IV_BYTES) return null
+        val blob = runCatching { Base64.decode(stored, Base64.NO_WRAP) }
+            .getOrElse { throw KeyMaterialUnavailable("数据库口令包装数据损坏；数据文件未被修改", it) }
+        if (blob.size <= GCM_IV_BYTES) {
+            throw KeyMaterialUnavailable("数据库口令包装数据不完整；数据文件未被修改")
+        }
 
         return try {
             Cipher.getInstance("AES/GCM/NoPadding").run {
@@ -130,7 +146,10 @@ object DatabaseKey {
         } catch (e: UserNotAuthenticatedException) {
             throw e
         } catch (e: Exception) {
-            null
+            throw KeyMaterialUnavailable(
+                "无法解开原数据库口令；已停止打开，联系人数据文件保持不变",
+                e,
+            )
         }
     }
 
@@ -193,7 +212,7 @@ object DatabaseKey {
     // ------------------------------------------------------------ Keystore
 
     private fun prefs(context: Context) =
-        context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
     /**
      * 取密钥。**故意不吞异常** —— 调用方要靠异常区分「没有」和「取不到」。

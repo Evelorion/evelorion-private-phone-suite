@@ -158,6 +158,9 @@ object EncryptedDatabases {
             installed = false
             ourInstance = null
             verified = false
+            activePassphrase?.fill(0)
+            activePassphrase = null
+            runCatching { ContactsDatabase.destroyInstance() }
             Log.e(TAG, lastError, e)
         }
     }
@@ -354,6 +357,17 @@ object EncryptedDatabases {
             //
             // 只验一次：verified 之后这个方法就退化成三次字段读取。
             if (!tryOpen()) {
+                val file = context.getDatabasePath(CONTACTS_DB)
+                if (file.exists() &&
+                    runCatching { DatabaseEncryptionMigrator.isEncrypted(file) }.getOrDefault(true)
+                ) {
+                    closeInjectedInstance()
+                    contactsDbEncrypted = false
+                    throw IllegalStateException(
+                        "本机加密联系人库无法用当前口令打开；已停止操作，数据文件没有被清空"
+                    )
+                }
+
                 // 开不了最常见的原因是**记录的状态和磁盘上的事实对不上**：
                 // prefs 说「已加密」，但文件其实是明文（上一次崩溃后被 Room 的
                 // 默认损坏处理器删掉重建过），或者反过来。
@@ -362,6 +376,7 @@ object EncryptedDatabases {
                 // commons 就会自己建一个**明文**实例去开这个文件 ——
                 // 而 Room 遇到打不开的文件会认定「损坏」，**直接删掉重建**。
                 // 那是一次静默的数据清零，正是这次事故的起点。
+                closeInjectedInstance()
                 reconcileOnDisk(context)
                 if (!tryOpen()) {
                     // 文件确实是加密的，但这把口令打不开它 —— 说明当初加密用的
@@ -371,7 +386,6 @@ object EncryptedDatabases {
                     // 这种情况没有任何技术手段能救：密钥就是没了。
                     // 但至少要说人话，并且告诉用户出路在哪 ——
                     // 甩一句「file is not a database」等于什么都没说。
-                    val file = context.getDatabasePath(CONTACTS_DB)
                     if (file.exists() && runCatching { DatabaseEncryptionMigrator.isEncrypted(file) }.getOrDefault(false)) {
                         lastError = "本机联系人库是加密的，但解开它的钥匙已经不在这台手机上了" +
                             "（通常是换了锁屏方式或恢复过出厂设置）。本机这份数据打不开了，" +
@@ -386,6 +400,14 @@ object EncryptedDatabases {
             }
             verified = true
         }
+    }
+
+    private fun closeInjectedInstance() {
+        runCatching { ourInstance?.close() }
+        runCatching { ContactsDatabase.destroyInstance() }
+        ourInstance = null
+        installed = false
+        verified = false
     }
 
     /** 试着真的读一下。失败只记录原因，不抛 —— 调用方要据此决定要不要纠正。 */

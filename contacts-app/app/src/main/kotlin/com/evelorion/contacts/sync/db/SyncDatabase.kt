@@ -226,13 +226,17 @@ abstract class SyncDatabase : RoomDatabase() {
          * 数据库出问题时全靠它把联系人恢复出来。删掉等于把救生圈扔了。
          */
         private fun open(context: Context): SyncDatabase {
-            val first = build(context, EncryptedDatabases.openHelperFactory(context))
+            EncryptedDatabases.requireReady(context)
+            val factory = requireNotNull(EncryptedDatabases.openHelperFactory(context)) {
+                "本机数据库加密层没有就绪，拒绝用明文方式打开同步库"
+            }
+            val first = build(context, factory)
             if (probe(first)) return first
             runCatching { first.close() }
 
             // 多半是明文文件配加密工厂。对齐之后再来一次。
             if (EncryptedDatabases.reconcileSyncDatabase(context, NAME)) {
-                val second = build(context, EncryptedDatabases.openHelperFactory(context))
+                val second = build(context, factory)
                 if (probe(second)) {
                     Log.i(TAG, "同步库的加密状态已对齐")
                     return second
@@ -248,15 +252,9 @@ abstract class SyncDatabase : RoomDatabase() {
             )
         }
 
-        private fun build(context: Context, factory: SupportSQLiteOpenHelper.Factory?): SyncDatabase =
+        private fun build(context: Context, factory: SupportSQLiteOpenHelper.Factory): SyncDatabase =
             Room.databaseBuilder(context.applicationContext, SyncDatabase::class.java, NAME)
-                .apply {
-                    // 这个库里的 base_payload 是完整的联系人明文快照，
-                    // 和 commons 的联系人库同一个保密等级，所以要一起加密。
-                    // 返回 null 表示本机没启用加密（或启用失败），那就退回明文 ——
-                    // 让 App 打不开比不加密更糟，但这个状态会显示在设置页里。
-                    factory?.let { openHelperFactory(it) }
-                }
+                .openHelperFactory(factory)
                 .build()
 
         /** Room 是懒打开的，必须真的碰一下才知道口令对不对。 */
