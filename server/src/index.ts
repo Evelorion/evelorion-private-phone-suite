@@ -11,6 +11,7 @@ import { registerMfaRoutes } from './routes/mfa.ts';
 import fastifyStatic from '@fastify/static';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { digitalAssetLinks } from './lib/android-passkeys.ts';
 
 const app = Fastify({
   logger: {
@@ -59,6 +60,12 @@ app.setErrorHandler((err, _req, reply) => {
 });
 
 app.get('/v1/health', async () => ({ ok: true, time: Date.now() }));
+
+app.get('/.well-known/assetlinks.json', async (_req, reply) => {
+  reply.header('Cache-Control', 'public, max-age=3600');
+  reply.type('application/json');
+  return digitalAssetLinks();
+});
 
 /**
  * 网页端的静态文件。

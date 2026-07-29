@@ -15,6 +15,7 @@ import {
   otpauthUri,
   generateBackupCodes,
 } from '../lib/totp.ts';
+import { androidAuthenticationOrigins } from '../lib/android-passkeys.ts';
 
 /**
  * 两步验证：TOTP 验证器 + 通行密钥（WebAuthn）。
@@ -51,9 +52,6 @@ import {
  */
 
 const CHALLENGE_TTL_MS = 5 * 60_000;
-const ANDROID_APP_ORIGIN =
-  'android:apk-key-hash:Qu7HfrRfsASrdPTtUVsvbn3Ji8T6oFGthgODF9UwXfA';
-
 type MfaSettings = {
   account_id: string;
   totp_enabled: number;
@@ -88,7 +86,7 @@ function rpConfig() {
     rpID: url.hostname,
     rpName: 'Contacts Sync',
     origin: url.origin,
-    authenticationOrigins: [url.origin, ANDROID_APP_ORIGIN],
+    authenticationOrigins: [url.origin, ...androidAuthenticationOrigins()],
   };
 }
 

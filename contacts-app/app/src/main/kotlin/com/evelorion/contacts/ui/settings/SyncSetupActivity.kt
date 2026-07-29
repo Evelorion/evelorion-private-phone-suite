@@ -19,6 +19,7 @@ import androidx.credentials.GetCredentialRequest
 import androidx.credentials.GetPublicKeyCredentialOption
 import androidx.credentials.PublicKeyCredential
 import androidx.credentials.exceptions.GetCredentialCancellationException
+import androidx.credentials.exceptions.GetCredentialException
 import androidx.credentials.exceptions.NoCredentialException
 import androidx.lifecycle.lifecycleScope
 import com.evelorion.contacts.R
@@ -390,6 +391,16 @@ class SyncSetupActivity : BaseActivity() {
                     showMfaCodeDialog { code -> submit(code) }
                 } else {
                     toast("这台设备没有可用的通行密钥")
+                }
+            } catch (e: GetCredentialException) {
+                binding.submitLabel.setText(MODES.first { it.first == mode }.second)
+                if ("backup" in challenge.methods ||
+                    ("totp" in challenge.methods && !challenge.requireAll)
+                ) {
+                    toast("系统无法调取通行密钥，改用验证码或备用码")
+                    showMfaCodeDialog { code -> submit(code) }
+                } else {
+                    toast("通行密钥与当前 App 或服务器域名尚未完成关联")
                 }
             } catch (e: Exception) {
                 binding.submitLabel.setText(MODES.first { it.first == mode }.second)

@@ -79,6 +79,23 @@ async function main(): Promise<void> {
     await new Promise((r) => setTimeout(r, 250));
   }
 
+  const assetLinksResponse = await fetch(`${BASE}/.well-known/assetlinks.json`);
+  const assetLinks = await assetLinksResponse.json() as Array<{
+    relation: string[];
+    target: { package_name: string; sha256_cert_fingerprints: string[] };
+  }>;
+  check('Digital Asset Links 返回 JSON', assetLinksResponse.ok);
+  check(
+    'Digital Asset Links 包含正式版和预览版',
+    ['com.evelorion.contacts', 'com.evelorion.contacts.debug'].every(
+      (name) => assetLinks.some((item) =>
+        item.target.package_name === name &&
+        item.relation.includes('delegate_permission/common.get_login_creds') &&
+        item.target.sha256_cert_fingerprints.length === 1
+      )
+    )
+  );
+
   try {
     // ---------------------------------------------------------------
     console.log('\n[1] 注册与密钥派生');
