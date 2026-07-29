@@ -250,8 +250,7 @@ object PhoneData {
 
     private fun initialOf(text: String): String {
         val first = text.firstOrNull() ?: return "?"
-        return if (first.isDigit() || first == '+') text.lastOrNull()?.toString() ?: "?"
-        else first.uppercase()
+        return first.uppercase()
     }
 
     private fun colorIndex(text: String): Int {

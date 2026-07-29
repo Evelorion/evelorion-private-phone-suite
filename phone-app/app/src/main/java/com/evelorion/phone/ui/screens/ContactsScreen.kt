@@ -89,7 +89,10 @@ fun ContactsScreen(state: PhoneState) {
                             .padding(horizontal = 8.dp)
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(26.dp))
-                            .clickable { state.call(p.id) }
+                            .clickable {
+                                state.selectedId = p.id
+                                state.go(com.evelorion.phone.ui.Screen.Detail)
+                            }
                             .padding(horizontal = 12.dp, vertical = 9.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {

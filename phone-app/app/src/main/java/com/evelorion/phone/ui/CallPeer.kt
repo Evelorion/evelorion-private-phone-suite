@@ -47,15 +47,11 @@ fun CallManager.peer(): CallPeer {
 /**
  * 取首字母。
  *
- * 中文取第一个字，英文取首字母大写，纯号码取最后一位 ——
- * 取号码的第一位没有区分度（同一地区前几位都一样）。
+ * 中文取第一个字，英文取首字母大写，号码也取开头字符。
  */
 private fun initialOf(text: String): String {
     val first = text.firstOrNull() ?: return "?"
-    return when {
-        first.isDigit() || first == '+' -> text.lastOrNull()?.toString() ?: "?"
-        else -> first.uppercase()
-    }
+    return first.uppercase()
 }
 
 /** 稳定哈希：同一个名字每次都得到同一个颜色，重启 App 也不变。 */

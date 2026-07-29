@@ -121,7 +121,11 @@ fun FavoritesScreen(state: PhoneState) {
                     modifier = Modifier.fillMaxWidth(),
                     onMoveUp = {},
                     onMoveDown = { move(0, 1) },
-                    onClick = { state.call(big.id) },
+                    onCall = { state.call(big.id) },
+                    onClick = {
+                        state.selectedId = big.id
+                        state.go(com.evelorion.phone.ui.Screen.Detail)
+                    },
                 )
                 Spacer(Modifier.height(12.dp))
             }
@@ -144,7 +148,11 @@ fun FavoritesScreen(state: PhoneState) {
                             modifier = Modifier.weight(1f),
                             onMoveUp = { move(index, -1) },
                             onMoveDown = { move(index, 1) },
-                            onClick = { state.call(person.id) },
+                            onCall = { state.call(person.id) },
+                            onClick = {
+                                state.selectedId = person.id
+                                state.go(com.evelorion.phone.ui.Screen.Detail)
+                            },
                         )
                     }
                     if (row.size == 1) Spacer(Modifier.weight(1f))
@@ -169,7 +177,10 @@ fun FavoritesScreen(state: PhoneState) {
                     family.forEach { person ->
                         Row(
                             Modifier.fillMaxWidth()
-                                .clickable { state.call(person.id) }
+                                .clickable {
+                                    state.selectedId = person.id
+                                    state.go(com.evelorion.phone.ui.Screen.Detail)
+                                }
                                 .padding(horizontal = 18.dp, vertical = 11.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
@@ -251,6 +262,7 @@ private fun FavoriteCard(
     modifier: Modifier = Modifier,
     onMoveUp: () -> Unit,
     onMoveDown: () -> Unit,
+    onCall: () -> Unit,
     onClick: () -> Unit,
 ) {
     MorphingSurface(
@@ -295,12 +307,14 @@ private fun FavoriteCard(
                         }
                     }
                 } else {
-                    Icon(
-                        Icons.Filled.Call,
-                        contentDescription = null,
-                        tint = color.foreground.copy(alpha = 0.75f),
-                        modifier = Modifier.size(22.dp),
-                    )
+                    IconButton(onClick = onCall) {
+                        Icon(
+                            Icons.Filled.Call,
+                            contentDescription = "呼叫",
+                            tint = color.foreground.copy(alpha = 0.75f),
+                            modifier = Modifier.size(22.dp),
+                        )
+                    }
                 }
             }
             Column {
