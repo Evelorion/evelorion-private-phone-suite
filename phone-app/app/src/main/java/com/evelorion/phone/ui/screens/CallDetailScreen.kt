@@ -88,7 +88,9 @@ fun CallDetailScreen(state: PhoneState) {
             Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 26.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            DetailAction(Modifier.weight(1f), Icons.Filled.Call, "通话", CallGreen, Color.White) { state.call(state.selectedId) }
+            DetailAction(Modifier.weight(1f), Icons.Filled.Call, "通话", CallGreen, Color.White) {
+                state.call(state.selectedId, number)
+            }
             DetailAction(Modifier.weight(1f), Icons.AutoMirrored.Filled.Message, "信息", scheme.secondaryContainer, scheme.onSecondaryContainer) {}
             DetailAction(Modifier.weight(1f), Icons.Filled.Videocam, "视频", scheme.secondaryContainer, scheme.onSecondaryContainer) {}
             DetailAction(Modifier.weight(1f), Icons.Filled.Block, "拦截", scheme.errorContainer, scheme.onErrorContainer) {}

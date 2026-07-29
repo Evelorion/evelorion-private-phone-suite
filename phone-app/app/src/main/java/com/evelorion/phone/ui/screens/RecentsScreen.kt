@@ -55,9 +55,9 @@ fun RecentsScreen(state: PhoneState) {
                     CallRow(
                         call = call,
                         spamShield = state.spamShield,
-                        onClick = { state.selectedId = call.personId ?: call.id; state.go(Screen.Detail) },
+                        onClick = { state.call(call.personId, call.displayNumber) },
                         onLongClick = { sheetFor = call },
-                        onAction = { state.call(call.personId) }
+                        onAction = { state.call(call.personId, call.displayNumber) }
                     )
                 }
             }
@@ -67,7 +67,8 @@ fun RecentsScreen(state: PhoneState) {
 
     sheetFor?.let { call ->
         CallActionSheet(call = call, onDismiss = { sheetFor = null }, onCall = {
-            sheetFor = null; state.call(call.personId)
+            sheetFor = null
+            state.call(call.personId, call.displayNumber)
         })
     }
 }

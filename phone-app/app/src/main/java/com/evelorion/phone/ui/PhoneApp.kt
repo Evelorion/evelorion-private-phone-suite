@@ -86,8 +86,10 @@ class PhoneState {
     /** 设置页要显示的真实状态。后台线程刷新，界面直接读。 */
     var settingsStatus by mutableStateOf(SettingsStatus())
 
-    fun call(id: String?) {
-        val number = PhoneData.person(id)?.number.orEmpty()
+    fun call(id: String?, fallbackNumber: String? = null) {
+        val number = PhoneData.person(id)?.number
+            ?.takeIf { it.isNotBlank() }
+            ?: fallbackNumber.orEmpty()
         if (number.isNotBlank()) requestCall(number)
     }
 
