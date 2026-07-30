@@ -84,7 +84,7 @@ fun SearchScreen(state: PhoneState) {
                 Row(
                     Modifier.padding(horizontal = 8.dp).fillMaxWidth()
                         .clip(RoundedCornerShape(26.dp))
-                        .clickable { state.selectedId = p.id; state.go(Screen.Detail) }
+                        .clickable { state.showPerson(p.id) }
                         .padding(horizontal = 12.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {

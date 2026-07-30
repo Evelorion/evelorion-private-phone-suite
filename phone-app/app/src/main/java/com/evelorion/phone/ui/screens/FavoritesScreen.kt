@@ -122,10 +122,7 @@ fun FavoritesScreen(state: PhoneState) {
                     onMoveUp = {},
                     onMoveDown = { move(0, 1) },
                     onCall = { state.call(big.id) },
-                    onClick = {
-                        state.selectedId = big.id
-                        state.go(com.evelorion.phone.ui.Screen.Detail)
-                    },
+                    onClick = { state.showPerson(big.id) },
                 )
                 Spacer(Modifier.height(12.dp))
             }
@@ -149,10 +146,7 @@ fun FavoritesScreen(state: PhoneState) {
                             onMoveUp = { move(index, -1) },
                             onMoveDown = { move(index, 1) },
                             onCall = { state.call(person.id) },
-                            onClick = {
-                                state.selectedId = person.id
-                                state.go(com.evelorion.phone.ui.Screen.Detail)
-                            },
+                            onClick = { state.showPerson(person.id) },
                         )
                     }
                     if (row.size == 1) Spacer(Modifier.weight(1f))
@@ -177,10 +171,7 @@ fun FavoritesScreen(state: PhoneState) {
                     family.forEach { person ->
                         Row(
                             Modifier.fillMaxWidth()
-                                .clickable {
-                                    state.selectedId = person.id
-                                    state.go(com.evelorion.phone.ui.Screen.Detail)
-                                }
+                                .clickable { state.showPerson(person.id) }
                                 .padding(horizontal = 18.dp, vertical = 11.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {

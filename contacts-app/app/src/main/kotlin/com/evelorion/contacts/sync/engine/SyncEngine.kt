@@ -16,6 +16,7 @@ import com.evelorion.contacts.sync.db.SyncDatabase
 import com.evelorion.contacts.sync.db.SyncRecordEntity
 import com.evelorion.contacts.sync.db.SyncStateEntity
 import com.evelorion.contacts.sync.localdb.EncryptedDatabases
+import com.evelorion.contacts.sync.localdb.ContactDatabaseSafety
 import com.evelorion.contacts.sync.model.ContactPayload
 import com.evelorion.contacts.sync.model.ContactPayload.Companion.toLocalContact
 import com.evelorion.contacts.sync.model.Merger
@@ -95,6 +96,7 @@ class SyncEngine(private val context: Context) {
             // 清单校验要在拉取之后、推送之前做 —— 推送会改写清单，
             // 先推的话就等于用新清单盖掉了本轮该被检查的那份。
             val issues = verifyManifest(dek, pullResult)
+            ContactDatabaseSafety.snapshotAfterMutation(context)
             val pushResult = push(dek, api)
             updateManifest(dek, api)
             rebuildBlindIndex(dek)

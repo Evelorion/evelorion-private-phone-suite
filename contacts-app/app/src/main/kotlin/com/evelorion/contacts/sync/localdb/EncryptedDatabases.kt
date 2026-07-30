@@ -126,6 +126,7 @@ object EncryptedDatabases {
                 DatabaseEncryptionMigrator.encryptInPlace(context, CONTACTS_DB, passphrase)
                 DatabaseKey.markEnabled(context)
             }
+            ContactDatabaseSafety.restoreIfNeeded(context, passphrase)
 
             val factory = SupportOpenHelperFactory(passphrase)
             val db = buildContactsDatabase(context, factory)
@@ -278,7 +279,7 @@ object EncryptedDatabases {
         context: Context,
         factory: SupportSQLiteOpenHelper.Factory,
     ): ContactsDatabase = Room.databaseBuilder(
-        context.applicationContext,
+        context.applicationContext ?: context,
         ContactsDatabase::class.java,
         CONTACTS_DB,
     )
@@ -409,6 +410,9 @@ object EncryptedDatabases {
         installed = false
         verified = false
     }
+
+    internal fun databaseForSafetySnapshot(): ContactsDatabase =
+        ourInstance ?: throw IllegalStateException("联系人数据库尚未就绪，无法创建安全快照")
 
     /** 试着真的读一下。失败只记录原因，不抛 —— 调用方要据此决定要不要纠正。 */
     private fun tryOpen(): Boolean {

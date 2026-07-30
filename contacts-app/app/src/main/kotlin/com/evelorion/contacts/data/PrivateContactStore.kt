@@ -3,6 +3,7 @@ package com.evelorion.contacts.data
 import android.content.Context
 import android.net.Uri
 import com.evelorion.contacts.sync.localdb.EncryptedDatabases
+import com.evelorion.contacts.sync.localdb.ContactDatabaseSafety
 import org.fossify.commons.extensions.contactsDB
 import org.fossify.commons.extensions.groupsDB
 import org.fossify.commons.models.PhoneNumber
@@ -46,7 +47,12 @@ class PrivateContactStore(private val context: Context) {
     private fun db() = context.also { EncryptedDatabases.requireReady(it) }.contactsDB
 
     /** 全部私密联系人，转成 UI 用的模型。 */
-    fun loadAll(): List<Contact> = db().getContacts().map { it.toContact() }
+    fun loadAll(): List<Contact> {
+        val database = db()
+        val contacts = database.getContacts()
+        if (contacts.isNotEmpty()) ContactDatabaseSafety.ensureSnapshot(context)
+        return contacts.map { it.toContact() }
+    }
 
     /**
      * 联系人 + 它所属的分组名。
@@ -71,14 +77,20 @@ class PrivateContactStore(private val context: Context) {
         db().getContactWithId(localId)?.toContact()
 
     /** @return 新建或更新后的本地 id */
-    fun save(contact: Contact): Int {
-        val id = db().insertOrUpdate(contact.toLocal()).toInt()
+    fun save(contact: Contact): Int = save(contact, updateSnapshot = true)
+
+    private fun save(contact: Contact, updateSnapshot: Boolean): Int {
+        val database = db()
+        val id = database.insertOrUpdate(contact.toLocal()).toInt()
+        if (updateSnapshot) ContactDatabaseSafety.snapshotAfterMutation(context)
         notifyChanged(context)
         return id
     }
 
     fun delete(localId: Int) {
-        db().deleteContactId(localId)
+        val database = db()
+        database.deleteContactId(localId)
+        ContactDatabaseSafety.snapshotAfterMutation(context)
         notifyChanged(context)
     }
 
@@ -123,9 +135,13 @@ class PrivateContactStore(private val context: Context) {
             }
 
             // id 必须清零，否则会覆盖加密库里编号相同的另一条记录
-            save(c.copy(id = 0, contactId = 0, source = SOURCE))
+            save(c.copy(id = 0, contactId = 0, source = SOURCE), updateSnapshot = false)
             known.addAll(numbers)
             imported.add(c)
+        }
+        if (imported.isNotEmpty()) {
+            ContactDatabaseSafety.snapshotAfterMutation(context)
+            notifyChanged(context)
         }
         return ImportResult(imported, skipped)
     }

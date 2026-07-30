@@ -49,6 +49,7 @@ class PhoneState {
     var screen by mutableStateOf(Screen.Recents)
     var previous by mutableStateOf(Screen.Recents)
     var selectedId by mutableStateOf<String?>("mom")
+    var selectedCallId by mutableStateOf<String?>(null)
     var dial by mutableStateOf("")
     var query by mutableStateOf("")
     var spamShield by mutableStateOf(true)
@@ -95,6 +96,18 @@ class PhoneState {
             ?.takeIf { it.isNotBlank() }
             ?: fallbackNumber.orEmpty()
         if (number.isNotBlank()) requestCall(number)
+    }
+
+    fun showPerson(id: String) {
+        selectedId = id
+        selectedCallId = null
+        go(Screen.Detail)
+    }
+
+    fun showCall(callId: String, personId: String?) {
+        selectedId = personId
+        selectedCallId = callId
+        go(Screen.Detail)
     }
 
     fun consumeCallRequest(): String = pendingNumber.also { pendingNumber = "" }

@@ -36,7 +36,7 @@ import com.evelorion.phone.ui.theme.CallGreen
 fun CallDetailScreen(state: PhoneState) {
     val scheme = MaterialTheme.colorScheme
     val person = PhoneData.person(state.selectedId)
-    val call = PhoneData.calls.firstOrNull { it.id == state.selectedId }
+    val call = PhoneData.calls.firstOrNull { it.id == state.selectedCallId }
     val name = person?.name ?: call?.displayName ?: "未知号码"
     val number = person?.number ?: call?.displayNumber ?: ""
     val initial = person?.initial ?: call?.displayInitial ?: "?"

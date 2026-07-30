@@ -55,7 +55,7 @@ fun RecentsScreen(state: PhoneState) {
                     CallRow(
                         call = call,
                         spamShield = state.spamShield,
-                        onClick = { state.call(call.personId, call.displayNumber) },
+                        onClick = { state.showCall(call.id, call.personId) },
                         onLongClick = { sheetFor = call },
                         onAction = { state.call(call.personId, call.displayNumber) }
                     )
@@ -142,6 +142,18 @@ private fun CallRow(
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        RoundIconButton(
+            icon = when {
+                call.spam && spamShield -> Icons.Filled.Block
+                call.kind == CallKind.Video -> Icons.Filled.Videocam
+                else -> Icons.Filled.Call
+            },
+            contentDescription = "呼叫",
+            bg = scheme.primaryContainer,
+            fg = scheme.onPrimaryContainer,
+            onClick = onAction
+        )
+        Spacer(Modifier.width(12.dp))
         Avatar(initial, bg, fg, corner = if (call.spam) 16.dp else 18.dp)
         Spacer(Modifier.width(16.dp))
         Column(Modifier.weight(1f)) {
@@ -163,17 +175,5 @@ private fun CallRow(
                 Text(meta, color = scheme.onSurfaceVariant, fontSize = 13.sp)
             }
         }
-        Spacer(Modifier.width(8.dp))
-        RoundIconButton(
-            icon = when {
-                call.spam && spamShield -> Icons.Filled.Block
-                call.kind == CallKind.Video -> Icons.Filled.Videocam
-                else -> Icons.Filled.Call
-            },
-            contentDescription = "呼叫",
-            bg = scheme.primaryContainer,
-            fg = scheme.onPrimaryContainer,
-            onClick = onAction
-        )
     }
 }
