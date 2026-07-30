@@ -86,14 +86,13 @@ async function main(): Promise<void> {
   }>;
   check('Digital Asset Links 返回 JSON', assetLinksResponse.ok);
   check(
-    'Digital Asset Links 包含正式版和预览版',
-    ['com.evelorion.contacts', 'com.evelorion.contacts.debug'].every(
-      (name) => assetLinks.some((item) =>
-        item.target.package_name === name &&
-        item.relation.includes('delegate_permission/common.get_login_creds') &&
-        item.target.sha256_cert_fingerprints.length === 1
-      )
-    )
+    'Digital Asset Links 只信任唯一正式发行证书',
+    assetLinks.length === 1 &&
+      assetLinks[0]?.target.package_name === 'com.evelorion.contacts' &&
+      assetLinks[0]?.relation.includes('delegate_permission/common.get_login_creds') &&
+      assetLinks[0]?.target.sha256_cert_fingerprints.length === 1 &&
+      assetLinks[0]?.target.sha256_cert_fingerprints[0] ===
+        '12:7D:2F:23:C9:08:68:B2:67:01:6C:66:F0:1A:4B:55:50:E2:A0:4C:4A:2C:B2:5C:60:00:46:7C:F6:61:1B:4B'
   );
 
   try {

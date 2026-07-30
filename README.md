@@ -41,12 +41,19 @@ npm run test:web
 ## Android 构建
 
 使用 JDK 17 和 Android SDK 36，在本机分别打开 `contacts-app` 与 `phone-app`。
-两个 App 必须使用同一份本地签名证书，并通过环境变量提供：
+两个 App 必须使用同一份本地签名证书。此项目的 Windows 开发机把发行密码
+保存在 Windows 凭据管理器的
+`Evelorion.PrivatePhoneSuite.ReleaseSigning` 条目中，使用以下脚本构建：
 
-```text
-KEYSTORE_PASSWORD
-KEY_ALIAS
-KEY_PASSWORD
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\windows\build-official-release.ps1
 ```
 
-签名材料只保存在本机离线备份中。
+脚本只在构建进程内设置 `KEYSTORE_PASSWORD`、`KEY_ALIAS` 和 `KEY_PASSWORD`，
+不会把密码写进源码。需要转存到个人密码管理器时，运行：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\windows\copy-release-signing-password.ps1
+```
+
+签名证书、Windows 凭据和离线备份都只保存在本机。

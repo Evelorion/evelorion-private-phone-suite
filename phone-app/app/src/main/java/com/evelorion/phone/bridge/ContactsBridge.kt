@@ -28,7 +28,7 @@ object ContactsBridge {
 
     private const val TAG = "ContactsBridge"
     private const val OFFICIAL_CERT_SHA256 =
-        "42eec77eb45fb004ab74f4ed515b2f6e7dc98bc4faa051ad86038317d5305df0"
+        "127d2f23c90868b267016c66f01a4b5550e2a04c4a2cb25c6000467cf6611b4b"
 
     enum class AccessState {
         AVAILABLE,
