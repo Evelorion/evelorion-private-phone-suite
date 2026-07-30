@@ -52,6 +52,9 @@ object PhoneData {
     var contactsUnavailable by mutableStateOf(false)
         private set
 
+    var contactsAccessState by mutableStateOf(ContactsBridge.AccessState.PROVIDER_ERROR)
+        private set
+
     fun person(id: String?): Person? = people.firstOrNull { it.id == id }
 
     /**
@@ -77,7 +80,9 @@ object PhoneData {
 
     private fun loadContacts(context: Context) {
         val fromVault = ContactsBridge.loadAll(context)
-        contactsUnavailable = fromVault.isEmpty() && !ContactsBridge.contactsAppInstalled(context)
+        contactsAccessState = ContactsBridge.accessState
+        contactsUnavailable = fromVault.isEmpty() &&
+            contactsAccessState != ContactsBridge.AccessState.AVAILABLE
         people = fromVault.map { c ->
             val letter = Pinyin.initialOf(c.name)
             Person(

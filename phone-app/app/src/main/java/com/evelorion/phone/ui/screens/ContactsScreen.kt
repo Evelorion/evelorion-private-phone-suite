@@ -22,6 +22,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.evelorion.phone.bridge.ContactsBridge
 import com.evelorion.phone.data.PhoneData
 import com.evelorion.phone.ui.PhoneState
 import com.evelorion.phone.ui.Screen
@@ -59,6 +60,30 @@ fun ContactsScreen(state: PhoneState) {
                     Icon(Icons.Filled.Search, null, tint = scheme.onSurfaceVariant)
                     Spacer(Modifier.width(12.dp))
                     Text("搜索 ${PhoneData.people.size} 位联系人", color = scheme.onSurfaceVariant, fontSize = 15.sp)
+                }
+            }
+            if (PhoneData.people.isEmpty()) {
+                item {
+                    val message = when (PhoneData.contactsAccessState) {
+                        ContactsBridge.AccessState.APP_NOT_INSTALLED ->
+                            "尚未安装通讯录应用"
+                        ContactsBridge.AccessState.ACCESS_DENIED ->
+                            "电话与通讯录的发行证书不一致，请安装同一发行版"
+                        ContactsBridge.AccessState.PROVIDER_ERROR ->
+                            "暂时无法读取通讯录，请打开通讯录后返回重试"
+                        ContactsBridge.AccessState.AVAILABLE ->
+                            "通讯录中还没有联系人"
+                    }
+                    Text(
+                        text = message,
+                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 28.dp),
+                        color = if (PhoneData.contactsUnavailable) {
+                            scheme.error
+                        } else {
+                            scheme.onSurfaceVariant
+                        },
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
                 }
             }
             item {

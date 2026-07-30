@@ -1,8 +1,12 @@
 package com.evelorion.phone.bridge
 
 import android.content.Context
+import android.content.pm.PackageManager
+import android.content.pm.Signature
 import android.net.Uri
+import android.os.Build
 import android.util.Log
+import java.security.MessageDigest
 
 /**
  * 向通讯录 App 要加密联系人。
@@ -23,6 +27,19 @@ import android.util.Log
 object ContactsBridge {
 
     private const val TAG = "ContactsBridge"
+    private const val OFFICIAL_CERT_SHA256 =
+        "42eec77eb45fb004ab74f4ed515b2f6e7dc98bc4faa051ad86038317d5305df0"
+
+    enum class AccessState {
+        AVAILABLE,
+        APP_NOT_INSTALLED,
+        ACCESS_DENIED,
+        PROVIDER_ERROR,
+    }
+
+    @Volatile
+    var accessState: AccessState = AccessState.PROVIDER_ERROR
+        private set
 
     /** 和通讯录 manifest 里声明的 authority 逐字一致。写错的表现是静默查不到。 */
     private const val AUTHORITY = "com.evelorion.contacts.privateprovider"
@@ -58,41 +75,102 @@ object ContactsBridge {
         ).firstOrNull()
     }
 
-    private fun query(context: Context, uri: Uri): List<Contact> = try {
-        context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-            val out = ArrayList<Contact>(cursor.count)
-            val idIdx = cursor.getColumnIndex("id")
-            val nameIdx = cursor.getColumnIndex("name")
-            val numberIdx = cursor.getColumnIndex("number")
-            val starredIdx = cursor.getColumnIndex("starred")
-            val groupsIdx = cursor.getColumnIndex("groups")
-            while (cursor.moveToNext()) {
-                out.add(
-                    Contact(
-                        id = if (idIdx >= 0) cursor.getInt(idIdx) else 0,
-                        name = if (nameIdx >= 0) cursor.getString(nameIdx).orEmpty() else "",
-                        number = if (numberIdx >= 0) cursor.getString(numberIdx).orEmpty() else "",
-                        starred = starredIdx >= 0 && cursor.getInt(starredIdx) == 1,
-                        // 老版本的通讯录没有这一列，getColumnIndex 返回 -1。
-                        // 这时当成"没有分组"，而不是崩掉 —— 两个 App 的版本
-                        // 不可能永远同步更新。
-                        groups = if (groupsIdx >= 0) {
-                            cursor.getString(groupsIdx).orEmpty()
-                                .split(GROUP_SEPARATOR).filter { it.isNotBlank() }
-                        } else emptyList(),
+    private fun query(context: Context, uri: Uri): List<Contact> {
+        if (!usesOfficialCertificates(context)) return emptyList()
+
+        return try {
+            val result = context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                val out = ArrayList<Contact>(cursor.count)
+                val idIdx = cursor.getColumnIndex("id")
+                val nameIdx = cursor.getColumnIndex("name")
+                val numberIdx = cursor.getColumnIndex("number")
+                val starredIdx = cursor.getColumnIndex("starred")
+                val groupsIdx = cursor.getColumnIndex("groups")
+                while (cursor.moveToNext()) {
+                    out.add(
+                        Contact(
+                            id = if (idIdx >= 0) cursor.getInt(idIdx) else 0,
+                            name = if (nameIdx >= 0) cursor.getString(nameIdx).orEmpty() else "",
+                            number = if (numberIdx >= 0) cursor.getString(numberIdx).orEmpty() else "",
+                            starred = starredIdx >= 0 && cursor.getInt(starredIdx) == 1,
+                            // 老版本的通讯录没有这一列，getColumnIndex 返回 -1。
+                            // 这时当成"没有分组"，而不是崩掉 —— 两个 App 的版本
+                            // 不可能永远同步更新。
+                            groups = if (groupsIdx >= 0) {
+                                cursor.getString(groupsIdx).orEmpty()
+                                    .split(GROUP_SEPARATOR).filter { it.isNotBlank() }
+                            } else emptyList(),
+                        )
                     )
-                )
+                }
+                out
             }
-            out
-        } ?: emptyList()
-    } catch (e: Exception) {
-        // 通讯录没装、权限没给、provider 没起来，都会走到这里。
-        // 记一笔就够了 —— 少了来电显示不该让电话 App 停摆。
-        Log.i(TAG, "读取加密联系人失败（通讯录可能未安装或未解锁）：${e.message}")
-        emptyList()
+            accessState = if (result == null) AccessState.PROVIDER_ERROR else AccessState.AVAILABLE
+            result ?: emptyList()
+        } catch (e: SecurityException) {
+            accessState = AccessState.ACCESS_DENIED
+            Log.w(TAG, "通讯录拒绝访问：请确认电话与通讯录使用同一正式发行证书", e)
+            emptyList()
+        } catch (e: Exception) {
+            accessState = if (contactsAppInstalled(context)) {
+                AccessState.PROVIDER_ERROR
+            } else {
+                AccessState.APP_NOT_INSTALLED
+            }
+            Log.w(TAG, "读取加密联系人失败：${e.message}", e)
+            emptyList()
+        }
     }
 
     /** 通讯录装没装。设置页用它决定要不要提示用户去装。 */
-    fun contactsAppInstalled(context: Context): Boolean =
+    fun contactsAppInstalled(context: Context): Boolean = runCatching {
         context.contentResolver.acquireContentProviderClient(AUTHORITY)?.also { it.close() } != null
+    }.getOrDefault(false)
+
+    private fun usesOfficialCertificates(context: Context): Boolean {
+        val providerPackage = context.packageManager
+            .resolveContentProvider(AUTHORITY, 0)
+            ?.packageName
+        if (providerPackage == null) {
+            accessState = AccessState.APP_NOT_INSTALLED
+            return false
+        }
+
+        val trusted = listOf(context.packageName, providerPackage).all { packageName ->
+            signingCertificates(context, packageName).any { signature ->
+                MessageDigest.getInstance("SHA-256")
+                    .digest(signature.toByteArray())
+                    .joinToString("") { "%02x".format(it) } == OFFICIAL_CERT_SHA256
+            }
+        }
+        if (!trusted) {
+            accessState = AccessState.ACCESS_DENIED
+            Log.w(TAG, "电话或通讯录没有使用正式发行证书")
+        }
+        return trusted
+    }
+
+    private fun signingCertificates(context: Context, packageName: String): List<Signature> =
+        try {
+            val packageManager = context.packageManager
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                val signingInfo = packageManager.getPackageInfo(
+                    packageName,
+                    PackageManager.GET_SIGNING_CERTIFICATES,
+                ).signingInfo
+                when {
+                    signingInfo == null -> emptyList()
+                    signingInfo.hasMultipleSigners() -> signingInfo.apkContentsSigners.toList()
+                    else -> signingInfo.signingCertificateHistory.toList()
+                }
+            } else {
+                @Suppress("DEPRECATION")
+                packageManager.getPackageInfo(
+                    packageName,
+                    PackageManager.GET_SIGNATURES,
+                ).signatures?.toList().orEmpty()
+            }
+        } catch (_: PackageManager.NameNotFoundException) {
+            emptyList()
+        }
 }

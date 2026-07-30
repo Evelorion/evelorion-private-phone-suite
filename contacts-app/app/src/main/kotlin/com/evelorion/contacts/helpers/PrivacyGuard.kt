@@ -54,11 +54,11 @@ object PrivacyGuard {
      * 或者对已装好的 APK：
      *     apksigner verify --print-certs app-release.apk
      *
-     * 留空集合表示「不做指纹钉扎，退回到 checkSignatures」——
-     * 开发阶段可以先这样，正式发版前一定要填上，否则第 1 条加固等于没做。
+     * 只接受正式发行证书。这里不能加入 debug 或临时证书，否则第三方重签包可能
+     * 获得与电话 App 相同的联系人读取能力。
      */
     private val pinnedCertSha256 = setOf<String>(
-        // "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "42eec77eb45fb004ab74f4ed515b2f6e7dc98bc4faa051ad86038317d5305df0",
     )
 
     fun isCallerAllowed(context: Context, callingPackage: String?, privacyProtectionEnabled: Boolean): Boolean {
@@ -97,15 +97,8 @@ object PrivacyGuard {
 
         if (!allowedByName) return false
 
-        return if (pinnedCertSha256.isEmpty()) {
-            // 还没配置指纹，退回到「和本 App 同签名」
-            @Suppress("DEPRECATION")
-            context.packageManager.checkSignatures(context.packageName, packageName) ==
-                PackageManager.SIGNATURE_MATCH
-        } else {
-            signingCertificates(context, packageName).any { cert ->
-                sha256Hex(cert.toByteArray()) in pinnedCertSha256
-            }
+        return signingCertificates(context, packageName).any { cert ->
+            sha256Hex(cert.toByteArray()) in pinnedCertSha256
         }
     }
 

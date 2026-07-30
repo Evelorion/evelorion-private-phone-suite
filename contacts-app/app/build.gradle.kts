@@ -1,3 +1,6 @@
+import java.security.KeyStore
+import java.security.MessageDigest
+
 // AGP 9 起内置 Kotlin 支持，**不要**再加 org.jetbrains.kotlin.android ——
 // 加了会直接报「plugin is no longer required since AGP 9.0」编译失败。
 plugins {
@@ -13,8 +16,8 @@ android {
         applicationId = "com.evelorion.contacts"
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
-        versionCode = 6
-        versionName = "1.0.1-preview.6"
+        versionCode = 7
+        versionName = "1.0.1-preview.7"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         ksp { arg("room.schemaLocation", "$projectDir/schemas") }
@@ -31,7 +34,31 @@ android {
         !keystorePassword.isNullOrBlank() &&
         !signingKeyAlias.isNullOrBlank() &&
         !signingKeyPassword.isNullOrBlank()
+    val officialCertSha256 = "42eec77eb45fb004ab74f4ed515b2f6e7dc98bc4faa051ad86038317d5305df0"
+    val releaseRequested = gradle.startParameter.taskNames.any {
+        it.contains("release", ignoreCase = true)
+    }
+    if (releaseRequested && !hasSharedSigning) {
+        throw GradleException(
+            "Release builds require signing/shared.jks and KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD. " +
+                "Unsigned or temporary-signed release APKs are forbidden."
+        )
+    }
     if (hasSharedSigning) {
+        val keyStore = KeyStore.getInstance("PKCS12")
+        keystore.inputStream().use { input ->
+            keyStore.load(input, keystorePassword!!.toCharArray())
+        }
+        val certificate = keyStore.getCertificate(signingKeyAlias)
+            ?: throw GradleException("The configured KEY_ALIAS does not exist in signing/shared.jks.")
+        val actualCertSha256 = MessageDigest.getInstance("SHA-256")
+            .digest(certificate.encoded)
+            .joinToString("") { "%02x".format(it) }
+        if (actualCertSha256 != officialCertSha256) {
+            throw GradleException(
+                "Refusing to build with a non-official certificate (SHA-256 $actualCertSha256)."
+            )
+        }
         signingConfigs {
             create("shared") {
                 storeFile = keystore
