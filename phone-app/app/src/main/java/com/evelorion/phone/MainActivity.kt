@@ -16,6 +16,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.LaunchedEffect
 import androidx.core.content.ContextCompat
 import com.evelorion.phone.telecom.DialerRole
+import com.evelorion.phone.telecom.CallScreeningRole
 import com.evelorion.phone.ui.CrashReport
 import com.evelorion.phone.ui.PhoneApp
 import com.evelorion.phone.ui.PhoneState
@@ -59,6 +60,25 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
+                val screeningLauncher = rememberLauncherForActivityResult(
+                    ActivityResultContracts.StartActivityForResult()
+                ) {
+                    state.settingsStatus = state.settingsStatus.copy(
+                        isCallScreeningEnabled = CallScreeningRole.isHeld(this@MainActivity)
+                    )
+                }
+                val requestCallScreeningRole = {
+                    if (!CallScreeningRole.isHeld(this@MainActivity)) {
+                        val intent = CallScreeningRole.requestIntent(this@MainActivity)
+                        if (intent != null) screeningLauncher.launch(intent)
+                        else Toast.makeText(
+                            this@MainActivity,
+                            "这台设备不支持第三方来电拦截",
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                    }
+                }
+
                 // 运行时权限。没有这些，拨号盘按了没反应、最近通话是空的，
                 // 而且都不会报错 —— 所以一进来就要。
                 val permissionLauncher = rememberLauncherForActivityResult(
@@ -87,6 +107,7 @@ class MainActivity : ComponentActivity() {
                 PhoneApp(
                     state = state,
                     onRequestDialerRole = requestDialerRole,
+                    onRequestCallScreeningRole = requestCallScreeningRole,
                     onOpenContacts = { openContactsApp() },
                 )
             }

@@ -20,7 +20,6 @@ import androidx.compose.material.icons.filled.CallEnd
 import androidx.compose.material.icons.filled.KeyboardDoubleArrowDown
 import androidx.compose.material.icons.filled.KeyboardDoubleArrowUp
 import androidx.compose.material.icons.filled.NotificationsOff
-import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -40,7 +39,6 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.evelorion.phone.telecom.CallManager
-import com.evelorion.phone.ui.SpamShield
 import com.evelorion.phone.ui.peer
 import com.evelorion.phone.ui.Motion
 import com.evelorion.phone.ui.PhoneState
@@ -106,19 +104,6 @@ fun IncomingCallScreen() {
         // 没有归属地库时不要留一个孤零零的「·」
         val subtitle = if (person.city.isBlank()) person.number else "${person.number} · ${person.city}"
         Text(subtitle, color = DarkOnSurfaceVariant, fontSize = 15.sp)
-
-        if (SpamShield.enabled) {
-            Row(
-                Modifier.padding(top = 14.dp).height(34.dp)
-                    .clip(RoundedCornerShape(17.dp)).background(Color(0xFF243B2A))
-                    .padding(horizontal = 16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(Icons.Filled.VerifiedUser, null, tint = Color(0xFFB6F0C6), modifier = Modifier.size(17.dp))
-                Spacer(Modifier.width(7.dp))
-                Text("已验证号码 · 非骚扰", color = Color(0xFFB6F0C6), fontSize = 13.sp)
-            }
-        }
 
         Spacer(Modifier.weight(1f))
         Row(

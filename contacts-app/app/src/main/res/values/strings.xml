@@ -55,6 +55,10 @@
     <string name="toggle_favorite">收藏</string>
     <string name="action_delete">删除</string>
     <string name="delete_confirm">要删除这位联系人吗？</string>
+    <string name="action_cancel">取消</string>
+    <string name="more_actions">更多操作</string>
+    <string name="contact_deleted">联系人已删除</string>
+    <string name="delete_failed">删除失败，联系人仍保留在本机</string>
 
     <!-- 编辑页 -->
     <string name="edit_new_title">新建联系人</string>

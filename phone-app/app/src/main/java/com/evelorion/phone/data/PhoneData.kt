@@ -11,6 +11,7 @@ import com.evelorion.phone.bridge.VaultBridge
 import com.evelorion.phone.sync.db.CallDatabase
 import com.evelorion.phone.sync.work.CallSyncScheduler
 import com.evelorion.phone.telecom.DialerRole
+import com.evelorion.phone.telecom.CallScreeningRole
 import com.evelorion.phone.ui.screens.SettingsStatus
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -154,11 +155,13 @@ object PhoneData {
         val dao = runCatching { CallDatabase.get(context).callDao() }.getOrNull()
         return SettingsStatus(
             isDefaultDialer = DialerRole.isDefault(context),
+            isCallScreeningEnabled = CallScreeningRole.isHeld(context),
             vaultUsable = vault.usable,
             vaultMessage = vault.message,
             callCount = runCatching { dao?.recent(9999)?.size ?: 0 }.getOrDefault(0),
             pendingCount = runCatching { dao?.countPending() ?: 0 }.getOrDefault(0),
             familyCount = people.count { it.family },
+            blockedCount = runCatching { BlockedNumberStore.all(context).size }.getOrDefault(0),
         )
     }
 

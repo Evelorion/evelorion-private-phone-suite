@@ -34,8 +34,10 @@ fun SettingsScreen(
     state: PhoneState,
     status: SettingsStatus = SettingsStatus(),
     onRequestDialerRole: () -> Unit = {},
+    onRequestCallScreeningRole: () -> Unit = {},
     onOpenContacts: () -> Unit = {},
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val scheme = MaterialTheme.colorScheme
     Column(
         Modifier.fillMaxSize().background(scheme.surfaceContainer.copy(alpha = 0.6f))
@@ -71,6 +73,14 @@ fun SettingsScreen(
                 badText = status.vaultMessage,
                 onClick = { onOpenContacts() },
             )
+            StatusRow(
+                icon = Icons.Filled.Block,
+                title = "来电拦截",
+                ok = status.isCallScreeningEnabled,
+                okText = "系统已允许本应用拦截名单中的号码",
+                badText = "尚未取得系统来电筛选角色，点这里开启",
+                onClick = onRequestCallScreeningRole,
+            )
             LinkRow(
                 Icons.Filled.Quickreply, "通话记录",
                 if (status.pendingCount > 0) "${status.callCount} 条 · 还有 ${status.pendingCount} 条待上传"
@@ -79,11 +89,22 @@ fun SettingsScreen(
         }
 
         SettingsGroup("来电与骚扰") {
-            SwitchRow(Icons.Filled.VerifiedUser, "骚扰与诈骗识别", "自动标记可疑来电", state.spamShield) { state.spamShield = it }
+            SwitchRow(
+                Icons.Filled.VerifiedUser,
+                "启用号码拦截",
+                "自动拒接本地拦截名单中的来电",
+                state.spamShield,
+            ) {
+                state.spamShield = it
+                com.evelorion.phone.data.BlockedNumberStore.setEnabled(context, it)
+            }
             SwitchRow(Icons.Filled.LocationOn, "归属地显示", "在来电界面显示城市", state.showCity) { state.showCity = it }
-            // 号码标记库还没接（在线查号会把「谁给你打电话」发给第三方，
-            // 和端到端加密自相矛盾），所以这里如实说还没有
-            LinkRow(Icons.Filled.Block, "拦截的号码", "还没有拦截名单")
+            LinkRow(
+                Icons.Filled.Block,
+                "拦截的号码",
+                if (status.blockedCount > 0) "${status.blockedCount} 个号码" else "还没有拦截号码",
+                onClick = { state.go(Screen.BlockedNumbers) },
+            )
         }
         SettingsGroup("常用联系人") {
             SwitchRow(Icons.Filled.Star, "置顶常用联系人", "在「常用」首屏显示大卡片", state.pinFavorites) { state.pinFavorites = it }
@@ -164,11 +185,13 @@ private fun LinkRow(
 /** 设置页要显示的真实状态。默认值全是「不可用」，这样忘了传就会明显看出来。 */
 data class SettingsStatus(
     val isDefaultDialer: Boolean = false,
+    val isCallScreeningEnabled: Boolean = false,
     val vaultUsable: Boolean = false,
     val vaultMessage: String = "尚未连接通讯录",
     val callCount: Int = 0,
     val pendingCount: Int = 0,
     val familyCount: Int = 0,
+    val blockedCount: Int = 0,
 )
 
 /**

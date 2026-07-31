@@ -11,6 +11,8 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.PopupMenu
+import android.widget.Toast
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import androidx.core.content.getSystemService
@@ -21,7 +23,9 @@ import com.evelorion.contacts.ui.BaseActivity
 import com.evelorion.contacts.ui.edit.EditActivity
 import com.evelorion.contacts.ui.theme.themeColor
 import com.evelorion.contacts.ui.widget.AvatarDrawable
+import com.evelorion.contacts.sync.work.SyncScheduler
 import com.google.android.material.R as MaterialR
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import org.fossify.commons.models.contacts.Contact
 import com.evelorion.contacts.ui.Bg
 import java.util.concurrent.Executors
@@ -38,6 +42,7 @@ class DetailActivity : BaseActivity() {
     private lateinit var repo: ContactRepository
     private val io = Bg.single("detail")
     private var contact: Contact? = null
+    private var deleting = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -54,6 +59,8 @@ class DetailActivity : BaseActivity() {
             )
         }
         binding.star.setOnClickListener { toggleFavorite() }
+        binding.more.contentDescription = getString(R.string.more_actions)
+        binding.more.setOnClickListener { showMoreMenu() }
         load()
     }
 
@@ -198,6 +205,52 @@ class DetailActivity : BaseActivity() {
         }
     }
 
+    private fun showMoreMenu() {
+        PopupMenu(this, binding.more).apply {
+            menu.add(0, MENU_DELETE, 0, R.string.action_delete)
+            setOnMenuItemClickListener {
+                if (it.itemId == MENU_DELETE) {
+                    confirmDelete()
+                    true
+                } else {
+                    false
+                }
+            }
+        }.show()
+    }
+
+    private fun confirmDelete() {
+        val current = contact ?: return
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.action_delete)
+            .setMessage(R.string.delete_confirm)
+            .setNegativeButton(R.string.action_cancel, null)
+            .setPositiveButton(R.string.action_delete) { _, _ -> deleteContact(current) }
+            .show()
+    }
+
+    private fun deleteContact(current: Contact) {
+        if (deleting) return
+        deleting = true
+        binding.more.isEnabled = false
+        io.execute {
+            repo.deleteContact(current) { ok ->
+                if (ok) SyncScheduler.syncNow(this, "contact_deleted")
+                runOnUiThread {
+                    if (isFinishing || isDestroyed) return@runOnUiThread
+                    deleting = false
+                    binding.more.isEnabled = true
+                    Toast.makeText(
+                        this,
+                        if (ok) R.string.contact_deleted else R.string.delete_failed,
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                    if (ok) finish()
+                }
+            }
+        }
+    }
+
     private fun copyToClipboard(text: String) {
         getSystemService<ClipboardManager>()
             ?.setPrimaryClip(ClipData.newPlainText(text, text))
@@ -210,5 +263,6 @@ class DetailActivity : BaseActivity() {
 
     companion object {
         const val EXTRA_ID = "contact_id"
+        private const val MENU_DELETE = 1
     }
 }

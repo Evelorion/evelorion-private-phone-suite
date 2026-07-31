@@ -19,6 +19,11 @@ import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -27,6 +32,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.evelorion.phone.data.PhoneData
+import com.evelorion.phone.data.BlockedNumberStore
 import com.evelorion.phone.ui.PhoneState
 import com.evelorion.phone.ui.components.Avatar
 import com.evelorion.phone.ui.components.MorphingSurface
@@ -34,6 +40,7 @@ import com.evelorion.phone.ui.theme.CallGreen
 
 @Composable
 fun CallDetailScreen(state: PhoneState) {
+    val context = LocalContext.current
     val scheme = MaterialTheme.colorScheme
     val person = PhoneData.person(state.selectedId)
     val call = PhoneData.calls.firstOrNull { it.id == state.selectedCallId }
@@ -45,6 +52,10 @@ fun CallDetailScreen(state: PhoneState) {
     // 没有离线号码库，归属地查不到 —— 写「未知归属地」是诚实的，
     // 但设计稿里那行显示的是城市，这里留空让它自然消失。
     val city = person?.city ?: call?.displayCity ?: ""
+    val blocked = remember(number, state.blockedRevision) {
+        number.isNotBlank() && BlockedNumberStore.isBlocked(context, number)
+    }
+    var confirmBlock by remember { mutableStateOf(false) }
 
     // 历史记录要按这个人筛一遍。以前 PhoneData.history 从来没人填，
     // 详情页的历史区永远是空的 —— 而界面看不出「空」和「还没加载」的区别。
@@ -93,7 +104,20 @@ fun CallDetailScreen(state: PhoneState) {
             }
             DetailAction(Modifier.weight(1f), Icons.AutoMirrored.Filled.Message, "信息", scheme.secondaryContainer, scheme.onSecondaryContainer) {}
             DetailAction(Modifier.weight(1f), Icons.Filled.Videocam, "视频", scheme.secondaryContainer, scheme.onSecondaryContainer) {}
-            DetailAction(Modifier.weight(1f), Icons.Filled.Block, "拦截", scheme.errorContainer, scheme.onErrorContainer) {}
+            DetailAction(
+                Modifier.weight(1f),
+                Icons.Filled.Block,
+                if (blocked) "解除" else "拦截",
+                scheme.errorContainer,
+                scheme.onErrorContainer,
+            ) {
+                if (blocked) {
+                    BlockedNumberStore.remove(context, number)
+                    state.blockedRevision++
+                } else {
+                    confirmBlock = true
+                }
+            }
         }
 
         Column(
@@ -130,6 +154,24 @@ fun CallDetailScreen(state: PhoneState) {
                 }
             }
         }
+    }
+
+    if (confirmBlock) {
+        AlertDialog(
+            onDismissRequest = { confirmBlock = false },
+            title = { Text("拦截这个号码？") },
+            text = { Text("$number\n之后的来电会被系统自动拒接，并保留在通话记录中。") },
+            confirmButton = {
+                Button(onClick = {
+                    BlockedNumberStore.add(context, number, name)
+                    state.blockedRevision++
+                    confirmBlock = false
+                }) { Text("确认拦截") }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmBlock = false }) { Text("取消") }
+            },
+        )
     }
 }
 

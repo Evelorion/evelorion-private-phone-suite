@@ -34,6 +34,7 @@ import com.evelorion.phone.ui.components.*
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun RecentsScreen(state: PhoneState) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     var sheetFor by remember { mutableStateOf<CallLog?>(null) }
     val scheme = MaterialTheme.colorScheme
 
@@ -69,6 +70,11 @@ fun RecentsScreen(state: PhoneState) {
         CallActionSheet(call = call, onDismiss = { sheetFor = null }, onCall = {
             sheetFor = null
             state.call(call.personId, call.displayNumber)
+        }, onBlockedChanged = {
+            state.blockedRevision++
+            state.settingsStatus = state.settingsStatus.copy(
+                blockedCount = com.evelorion.phone.data.BlockedNumberStore.all(context).size
+            )
         })
     }
 }

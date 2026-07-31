@@ -43,7 +43,9 @@ import com.evelorion.phone.ui.screens.SettingsStatus
  * 通话界面要能在锁屏上方亮屏显示，而且必须在 App 没启动时也能被系统拉起来，
  * 挂在主 Activity 的导航里做不到这两点。
  */
-enum class Screen { Recents, Contacts, Favorites, Dialpad, Search, Detail, Settings, Recordings }
+enum class Screen {
+    Recents, Contacts, Favorites, Dialpad, Search, Detail, Settings, Recordings, BlockedNumbers
+}
 
 class PhoneState {
     var screen by mutableStateOf(Screen.Recents)
@@ -56,6 +58,7 @@ class PhoneState {
     var showCity by mutableStateOf(true)
     var pinFavorites by mutableStateOf(true)
     var recording by mutableStateOf(false)
+    var blockedRevision by mutableStateOf(0)
 
     fun go(target: Screen) {
         if (target != screen) previous = screen
@@ -118,6 +121,8 @@ fun PhoneApp(
     state: PhoneState = remember { PhoneState() },
     /** 请求成为默认电话应用。由 Activity 提供 —— 它要 startActivityForResult。 */
     onRequestDialerRole: () -> Unit = {},
+    /** 请求系统把本应用设为来电筛选应用。 */
+    onRequestCallScreeningRole: () -> Unit = {},
     /** 跳去通讯录（让用户解锁保险库 / 建家人分组）。 */
     onOpenContacts: () -> Unit = {},
 ) {
@@ -127,6 +132,10 @@ fun PhoneApp(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var contactsRevision by remember { mutableStateOf(0) }
+
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        state.spamShield = com.evelorion.phone.data.BlockedNumberStore.isEnabled(context)
+    }
 
     var lastRootBackAt by remember { mutableLongStateOf(0L) }
     BackHandler {
@@ -218,9 +227,11 @@ fun PhoneApp(
                     state = state,
                     status = state.settingsStatus,
                     onRequestDialerRole = onRequestDialerRole,
+                    onRequestCallScreeningRole = onRequestCallScreeningRole,
                     onOpenContacts = onOpenContacts,
                 )
                 Screen.Recordings -> RecordingsScreen(state)
+                Screen.BlockedNumbers -> BlockedNumbersScreen(state)
             }
         }
     }
