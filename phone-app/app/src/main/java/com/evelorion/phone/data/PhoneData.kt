@@ -80,6 +80,11 @@ object PhoneData {
         loadCalls(context)
     }
 
+    /** 写入收藏后只刷新联系人，避免无关的通话记录查询。必须在后台线程调用。 */
+    fun refreshContacts(context: Context) {
+        loadContacts(context)
+    }
+
     private fun loadContacts(context: Context) {
         val fromVault = ContactsBridge.loadAll(context)
         contactsAccessState = ContactsBridge.accessState

@@ -1,5 +1,6 @@
 package com.evelorion.phone.ui.screens
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -22,6 +23,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
@@ -31,12 +33,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.evelorion.phone.bridge.ContactsBridge
 import com.evelorion.phone.data.PhoneData
 import com.evelorion.phone.data.BlockedNumberStore
 import com.evelorion.phone.ui.PhoneState
 import com.evelorion.phone.ui.components.Avatar
 import com.evelorion.phone.ui.components.MorphingSurface
 import com.evelorion.phone.ui.theme.CallGreen
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun CallDetailScreen(state: PhoneState) {
@@ -55,6 +61,9 @@ fun CallDetailScreen(state: PhoneState) {
     val blocked = remember(number, state.blockedRevision) {
         number.isNotBlank() && BlockedNumberStore.isBlocked(context, number)
     }
+    val favorite = person?.favorite == true
+    val scope = rememberCoroutineScope()
+    var favoriteBusy by remember(person?.id) { mutableStateOf(false) }
     var confirmBlock by remember { mutableStateOf(false) }
 
     // 历史记录要按这个人筛一遍。以前 PhoneData.history 从来没人填，
@@ -74,7 +83,41 @@ fun CallDetailScreen(state: PhoneState) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回", tint = scheme.onSurface)
             }
             Spacer(Modifier.weight(1f))
-            IconButton(onClick = {}) { Icon(Icons.Filled.StarBorder, "收藏", tint = scheme.onSurface) }
+            IconButton(
+                enabled = !favoriteBusy,
+                onClick = {
+                    val contactId = person?.id?.toIntOrNull()
+                    if (contactId == null) {
+                        Toast.makeText(context, "请先把这个号码添加到通讯录，再收藏", Toast.LENGTH_LONG).show()
+                    } else {
+                        favoriteBusy = true
+                        scope.launch {
+                            val changed = withContext(Dispatchers.IO) {
+                                ContactsBridge.setFavorite(context, contactId, !favorite)
+                            }
+                            if (changed) {
+                                withContext(Dispatchers.IO) { PhoneData.refreshContacts(context) }
+                            }
+                            Toast.makeText(
+                                context,
+                                when {
+                                    !changed -> "收藏修改失败，请确认通讯录已解锁"
+                                    favorite -> "已取消收藏"
+                                    else -> "已添加到常用"
+                                },
+                                Toast.LENGTH_SHORT,
+                            ).show()
+                            favoriteBusy = false
+                        }
+                    }
+                },
+            ) {
+                Icon(
+                    if (favorite) Icons.Filled.Star else Icons.Filled.StarBorder,
+                    if (favorite) "取消收藏" else "收藏",
+                    tint = if (favorite) scheme.primary else scheme.onSurface,
+                )
+            }
             IconButton(onClick = {}) { Icon(Icons.Filled.MoreVert, "更多", tint = scheme.onSurface) }
         }
 

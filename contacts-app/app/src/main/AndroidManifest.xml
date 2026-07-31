@@ -123,7 +123,8 @@
             android:name=".privacy.PrivateContactsProvider"
             android:authorities="com.evelorion.contacts.privateprovider"
             android:exported="true"
-            android:readPermission="com.evelorion.permission.READ_PRIVATE_CONTACTS" />
+            android:readPermission="com.evelorion.permission.READ_PRIVATE_CONTACTS"
+            android:writePermission="com.evelorion.permission.READ_PRIVATE_CONTACTS" />
 
         <!-- 把 calls 子密钥交给电话 App 的通道。给出去的是
              HKDF(DEK, "calls") 派生出来的子密钥，**不是 DEK 本身** ——

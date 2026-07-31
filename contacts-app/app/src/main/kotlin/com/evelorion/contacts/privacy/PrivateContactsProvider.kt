@@ -14,6 +14,7 @@ import com.evelorion.contacts.sync.crypto.Crypto
 import com.evelorion.contacts.sync.crypto.VaultCrypto
 import com.evelorion.contacts.sync.db.SyncDatabase
 import com.evelorion.contacts.sync.model.ContactPayload
+import com.evelorion.contacts.sync.work.SyncScheduler
 
 /**
  * 加密联系人的对外出口。给自家的电话 App 用。
@@ -151,9 +152,38 @@ class PrivateContactsProvider : ContentProvider() {
     override fun getType(uri: Uri): String =
         "vnd.android.cursor.dir/vnd.com.evelorion.contacts.contact"
 
-    // 只读。写操作一律拒绝 —— 不要因为「反正没人调」就返回成功，
-    // 返回 1 会让调用方以为写进去了。
+    // 新增和删除仍然只允许在通讯录 UI 中操作。收藏是唯一开放给同签名
+    // 电话 App 的写入，因为电话详情页和常用页必须操作同一份真实数据。
     override fun insert(uri: Uri, values: ContentValues?): Uri? = null
-    override fun update(uri: Uri, v: ContentValues?, s: String?, a: Array<out String>?) = 0
+
+    override fun update(
+        uri: Uri,
+        values: ContentValues?,
+        selection: String?,
+        selectionArgs: Array<out String>?,
+    ): Int {
+        val context = context ?: return 0
+        if (!PrivacyGuard.isCallerAllowed(context, callingPackage, context.config.privacyProtectionEnabled)) {
+            Log.w(TAG, "拒绝了 ${callingPackage ?: "未知调用方"} 修改联系人")
+            return 0
+        }
+
+        val segments = uri.pathSegments
+        if (segments.firstOrNull() != PATH_CONTACTS || segments.size != 2) return 0
+        val contactId = segments[1].toIntOrNull()?.takeIf { it > 0 } ?: return 0
+        val starred = values?.getAsInteger(COL_STARRED)?.takeIf { it == 0 || it == 1 } ?: return 0
+
+        return runCatching {
+            val store = PrivateContactStore(context)
+            val contact = store.getById(contactId) ?: return@runCatching 0
+            contact.starred = starred
+            store.save(contact)
+            SyncScheduler.syncNow(context, "phone_favorite")
+            1
+        }.onFailure {
+            Log.w(TAG, "更新联系人收藏失败，id=$contactId", it)
+        }.getOrDefault(0)
+    }
+
     override fun delete(uri: Uri, s: String?, a: Array<out String>?) = 0
 }

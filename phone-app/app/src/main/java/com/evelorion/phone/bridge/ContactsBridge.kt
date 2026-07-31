@@ -1,5 +1,6 @@
 package com.evelorion.phone.bridge
 
+import android.content.ContentValues
 import android.content.Context
 import android.content.pm.PackageManager
 import android.content.pm.Signature
@@ -73,6 +74,24 @@ object ContactsBridge {
         return query(
             context, Uri.parse("content://$AUTHORITY/lookup/" + Uri.encode(number))
         ).firstOrNull()
+    }
+
+    /** 修改通讯录中的真实收藏状态。只有同一发行证书签名的电话 App 能调用。 */
+    fun setFavorite(context: Context, contactId: Int, favorite: Boolean): Boolean {
+        if (contactId <= 0 || !usesOfficialCertificates(context)) return false
+        return try {
+            val uri = CONTACTS_URI.buildUpon().appendPath(contactId.toString()).build()
+            val changed = context.contentResolver.update(
+                uri,
+                ContentValues().apply { put("starred", if (favorite) 1 else 0) },
+                null,
+                null,
+            )
+            changed == 1
+        } catch (e: Exception) {
+            Log.w(TAG, "修改联系人收藏失败，id=$contactId", e)
+            false
+        }
     }
 
     private fun query(context: Context, uri: Uri): List<Contact> {
