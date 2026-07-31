@@ -9,12 +9,12 @@ import com.evelorion.phone.sync.crypto.Crypto
 import com.evelorion.phone.sync.crypto.VaultCrypto
 import com.evelorion.phone.sync.db.CallDatabase
 import com.evelorion.phone.sync.db.CallRecordEntity
+import com.evelorion.phone.sync.db.CallRecordDeduplicator
 import com.evelorion.phone.sync.db.CallSyncStateEntity
 import com.evelorion.phone.sync.net.CallsApi
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
-import java.util.UUID
 
 /**
  * 通话记录的端到端加密同步。
@@ -50,7 +50,8 @@ class CallSyncEngine(private val context: Context) {
         val ok: Boolean get() = error.isEmpty()
     }
 
-    private val dao by lazy { CallDatabase.get(context).callDao() }
+    private val database by lazy { CallDatabase.get(context) }
+    private val dao by lazy { database.callDao() }
 
     fun sync(): Report {
         val session = VaultBridge.session(context)
@@ -65,9 +66,11 @@ class CallSyncEngine(private val context: Context) {
         }
 
         return try {
+            CallRecordDeduplicator.clean(dao)
             val imported = importFromSystem()
             val state = dao.state() ?: CallSyncStateEntity()
             val pulled = pull(api, key, state.lastSeq)
+            CallRecordDeduplicator.clean(dao)
             val pushed = push(api, key)
 
             dao.putState(
@@ -111,6 +114,9 @@ class CallSyncEngine(private val context: Context) {
         val since = state.systemImportedUpTo
         var newest = since
         var count = 0
+        val existing = dao.recent(10_000)
+            .asSequence()
+            .mapTo(HashSet(), CallRecordDeduplicator::identity)
 
         runCatching {
             context.contentResolver.query(
@@ -125,26 +131,41 @@ class CallSyncEngine(private val context: Context) {
             )?.use { c ->
                 val batch = ArrayList<CallRecordEntity>()
                 while (c.moveToNext()) {
+                    val number = c.getString(0).orEmpty()
+                    val kind = when (c.getInt(1)) {
+                        SystemCallLog.Calls.INCOMING_TYPE -> "incoming"
+                        SystemCallLog.Calls.OUTGOING_TYPE -> "outgoing"
+                        else -> "missed"
+                    }
                     val startedAt = c.getLong(2)
+                    val durationSeconds = c.getInt(3)
                     if (startedAt > newest) newest = startedAt
+                    val identity = CallRecordDeduplicator.identity(
+                        number, kind, startedAt, durationSeconds
+                    )
+                    if (!existing.add(identity)) continue
                     batch.add(
                         CallRecordEntity(
-                            uuid = UUID.randomUUID().toString(),
-                            number = c.getString(0).orEmpty(),
+                            uuid = CallRecordDeduplicator.stableUuid(identity),
+                            number = number,
                             name = c.getString(4).orEmpty(),
-                            kind = when (c.getInt(1)) {
-                                SystemCallLog.Calls.INCOMING_TYPE -> "incoming"
-                                SystemCallLog.Calls.OUTGOING_TYPE -> "outgoing"
-                                else -> "missed"
-                            },
+                            kind = kind,
                             startedAt = startedAt,
-                            durationSeconds = c.getInt(3),
+                            durationSeconds = durationSeconds,
                             dirty = true,
                         )
                     )
                     count++
                 }
-                if (batch.isNotEmpty()) dao.upsertAll(batch)
+                database.runInTransaction {
+                    if (batch.isNotEmpty()) dao.upsertAll(batch)
+                    if (newest > since) {
+                        dao.putState(
+                            (dao.state() ?: CallSyncStateEntity())
+                                .copy(systemImportedUpTo = newest)
+                        )
+                    }
+                }
             }
         }.onFailure {
             // 没给 READ_CALL_LOG 权限时走这里。收不到系统记录不该让整次同步失败 ——
@@ -152,9 +173,6 @@ class CallSyncEngine(private val context: Context) {
             Log.i(TAG, "读取系统通话记录失败：${it.message}")
         }
 
-        if (newest > since) {
-            dao.putState((dao.state() ?: CallSyncStateEntity()).copy(systemImportedUpTo = newest))
-        }
         return count
     }
 

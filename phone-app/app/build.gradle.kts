@@ -18,8 +18,8 @@ android {
         applicationId = "com.evelorion.phone"
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
-        versionCode = 8
-        versionName = "1.0.1-preview.8"
+        versionCode = 9
+        versionName = "1.0.1-preview.9"
 
         ksp { arg("room.schemaLocation", "$projectDir/schemas") }
 
@@ -137,6 +137,8 @@ configurations.configureEach {
 }
 
 dependencies {
+    testImplementation("junit:junit:4.13.2")
+
     implementation(platform(libs.compose.bom))
     implementation(libs.bundles.compose)
     debugImplementation(libs.compose.ui.tooling)

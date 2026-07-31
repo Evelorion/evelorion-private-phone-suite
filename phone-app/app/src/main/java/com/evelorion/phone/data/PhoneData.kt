@@ -9,6 +9,7 @@ import androidx.compose.ui.graphics.Color
 import com.evelorion.phone.bridge.ContactsBridge
 import com.evelorion.phone.bridge.VaultBridge
 import com.evelorion.phone.sync.db.CallDatabase
+import com.evelorion.phone.sync.db.CallRecordDeduplicator
 import com.evelorion.phone.sync.work.CallSyncScheduler
 import com.evelorion.phone.telecom.DialerRole
 import com.evelorion.phone.telecom.CallScreeningRole
@@ -115,7 +116,9 @@ object PhoneData {
     private fun loadCalls(context: Context) {
         val byNumber = people.associateBy { normalize(it.number) }
         calls = runCatching {
-            CallDatabase.get(context).callDao().recent().map { r ->
+            val dao = CallDatabase.get(context).callDao()
+            CallRecordDeduplicator.clean(dao)
+            dao.recent().map { r ->
                 val match = byNumber[normalize(r.number)]
                 // 显示名优先用**当前**联系人，其次用记录当时的快照，最后退回号码。
                 // 反过来（快照优先）的话，联系人改了名，历史记录还显示旧名字。
