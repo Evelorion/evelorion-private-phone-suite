@@ -84,8 +84,10 @@ fun CallDetailScreen(state: PhoneState) {
         ) {
             Avatar(initial, bg, fg, size = 104.dp, corner = 34.dp, fontSize = 40)
             Text(name, Modifier.padding(top = 16.dp), style = MaterialTheme.typography.headlineMedium, color = scheme.onSurface)
-            Text("$number · 中国移动", color = scheme.onSurfaceVariant, fontSize = 15.sp)
-            if (state.showCity) {
+            if (number.isNotBlank() && number != name) {
+                Text(number, color = scheme.onSurfaceVariant, fontSize = 15.sp)
+            }
+            if (state.showCity && city.isNotBlank()) {
                 Box(
                     Modifier.padding(top = 10.dp).height(32.dp)
                         .clip(RoundedCornerShape(16.dp)).background(scheme.secondaryContainer)
