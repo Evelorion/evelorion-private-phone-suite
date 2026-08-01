@@ -3,6 +3,7 @@ package com.evelorion.phone.telecom
 import android.content.Intent
 import android.telecom.Call
 import android.telecom.CallAudioState
+import android.telecom.CallEndpoint
 import android.telecom.InCallService
 import android.util.Log
 
@@ -39,6 +40,16 @@ class PhoneInCallService : InCallService() {
     override fun onCallAudioStateChanged(audioState: CallAudioState) {
         super.onCallAudioStateChanged(audioState)
         CallManager.onAudioStateChanged(audioState)
+    }
+
+    override fun onAvailableCallEndpointsChanged(availableEndpoints: List<CallEndpoint>) {
+        super.onAvailableCallEndpointsChanged(availableEndpoints)
+        CallManager.onAvailableEndpointsChanged(availableEndpoints)
+    }
+
+    override fun onCallEndpointChanged(callEndpoint: CallEndpoint) {
+        super.onCallEndpointChanged(callEndpoint)
+        CallManager.onEndpointChanged(callEndpoint)
     }
 
     override fun onDestroy() {

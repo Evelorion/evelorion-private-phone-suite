@@ -151,6 +151,13 @@ class CallSyncEngine(private val context: Context) {
                             name = c.getString(4).orEmpty(),
                             kind = kind,
                             startedAt = startedAt,
+                            // 系统 CallLog 没有单独的结束时间。这里只能用已接通时长估算；
+                            // 本 App 自己记录的新通话会保存真实的挂断时间。
+                            endedAt = if (durationSeconds > 0) {
+                                startedAt + durationSeconds * 1_000L
+                            } else {
+                                startedAt
+                            },
                             durationSeconds = durationSeconds,
                             dirty = true,
                         )
@@ -233,6 +240,7 @@ class CallSyncEngine(private val context: Context) {
                 name = payload.optString("name"),
                 kind = payload.optString("kind", "incoming"),
                 startedAt = payload.optLong("startedAt"),
+                endedAt = payload.optLong("endedAt"),
                 durationSeconds = payload.optInt("duration"),
                 rev = rev,
                 dirty = false,
@@ -271,6 +279,7 @@ class CallSyncEngine(private val context: Context) {
                     .put("name", record.name)
                     .put("kind", record.kind)
                     .put("startedAt", record.startedAt)
+                    .put("endedAt", record.endedAt)
                     .put("duration", record.durationSeconds)
                     .toString()
 

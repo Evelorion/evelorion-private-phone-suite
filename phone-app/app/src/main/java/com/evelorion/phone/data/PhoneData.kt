@@ -139,6 +139,8 @@ object PhoneData {
                         "missed" -> CallKind.Missed
                         else -> CallKind.Incoming
                     },
+                    startedAt = r.startedAt,
+                    endedAt = r.endedAt,
                     time = TIME.format(Date(r.startedAt)),
                     duration = if (r.durationSeconds > 0) formatDuration(r.durationSeconds.toLong()) else null,
                     displayName = display,
@@ -179,7 +181,7 @@ object PhoneData {
      * 同时按 personId 和号码筛：陌生号码没有 personId，只能靠号码认；
      * 而同一个人可能有多个号码，那时 personId 才管用。只用一个条件会漏。
      */
-    fun historyFor(personId: String?, number: String = "") {
+    fun historyFor(personId: String?, number: String = "", selectedCallId: String? = null) {
         val target = normalize(number)
         history = calls.filter {
             (personId != null && it.personId == personId) ||
@@ -187,11 +189,17 @@ object PhoneData {
         }.map {
             HistoryEntry(
                 kind = it.kind.label,
-                when_ = it.time,
-                duration = it.duration ?: "未接通",
+                date = DETAIL_DATE.format(Date(it.startedAt)),
+                timeRange = when {
+                    it.kind == CallKind.Missed -> "响铃时间 ${DETAIL_TIME.format(Date(it.startedAt))} · 未接通"
+                    it.endedAt > 0L -> "开始 ${DETAIL_TIME.format(Date(it.startedAt))} · 结束 ${DETAIL_TIME.format(Date(it.endedAt))}"
+                    else -> "开始 ${DETAIL_TIME.format(Date(it.startedAt))} · 结束时间未记录"
+                },
+                duration = it.duration?.let { duration -> "通话时长 $duration" } ?: "未接通",
                 missed = it.kind == CallKind.Missed,
+                selected = it.id == selectedCallId,
             )
-        }
+        }.sortedByDescending { it.selected }
     }
 
     /**
@@ -233,6 +241,8 @@ object PhoneData {
     // ------------------------------------------------------------ 工具
 
     private val TIME = SimpleDateFormat("HH:mm", Locale.CHINA)
+    private val DETAIL_TIME = SimpleDateFormat("HH:mm:ss", Locale.CHINA)
+    private val DETAIL_DATE = SimpleDateFormat("yyyy年M月d日 EEEE", Locale.CHINA)
 
     /** 按记录的真实日期分组；更早的记录显示具体日期，不塞进含糊的「更早」。 */
     private fun groupOf(timestamp: Long): String {

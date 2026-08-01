@@ -1,7 +1,13 @@
 package com.evelorion.phone.telecom
 
+import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import android.os.OutcomeReceiver
 import android.telecom.Call
 import android.telecom.CallAudioState
+import android.telecom.CallEndpoint
+import android.telecom.CallEndpointException
 import android.telecom.InCallService
 import android.telecom.VideoProfile
 import androidx.compose.runtime.getValue
@@ -56,6 +62,16 @@ object CallManager {
     var speakerOn by mutableStateOf(false)
         private set
 
+    var onHold by mutableStateOf(false)
+        private set
+
+    var canHold by mutableStateOf(false)
+        private set
+
+    private var currentEndpoint: CallEndpoint? = null
+    private var availableEndpoints: List<CallEndpoint> = emptyList()
+    private val mainHandler = Handler(Looper.getMainLooper())
+
     /** 通话中在拨号盘上按出来的号码，显示在界面上。 */
     var dtmfTyped by mutableStateOf("")
         private set
@@ -91,6 +107,10 @@ object CallManager {
             dtmfTyped = ""
             muted = false
             speakerOn = false
+            onHold = false
+            canHold = false
+            currentEndpoint = null
+            availableEndpoints = emptyList()
             notifyListeners()
         }
     }
@@ -98,6 +118,15 @@ object CallManager {
     fun onAudioStateChanged(audioState: CallAudioState) {
         muted = audioState.isMuted
         speakerOn = audioState.route == CallAudioState.ROUTE_SPEAKER
+    }
+
+    fun onAvailableEndpointsChanged(endpoints: List<CallEndpoint>) {
+        availableEndpoints = endpoints
+    }
+
+    fun onEndpointChanged(endpoint: CallEndpoint) {
+        currentEndpoint = endpoint
+        speakerOn = endpoint.endpointType == CallEndpoint.TYPE_SPEAKER
     }
 
     /**
@@ -116,6 +145,10 @@ object CallManager {
 
     private fun syncFrom(c: Call) {
         state = c.state
+        onHold = c.state == Call.STATE_HOLDING
+        canHold = c.details?.let {
+            it.can(Call.Details.CAPABILITY_HOLD) || it.can(Call.Details.CAPABILITY_SUPPORT_HOLD)
+        } == true
         number = c.details?.handle?.schemeSpecificPart.orEmpty()
         if (c.state == Call.STATE_ACTIVE && connectedAt == 0L) {
             connectedAt = System.currentTimeMillis()
@@ -145,24 +178,69 @@ object CallManager {
         if (c.state == Call.STATE_RINGING) c.reject(false, null) else c.disconnect()
     }
 
-    fun toggleMute() {
+    fun toggleMute(): Boolean {
+        val activeService = service ?: return false
         val target = !muted
-        service?.setMuted(target)
+        activeService.setMuted(target)
         // 乐观更新：真实值会通过 onCallAudioStateChanged 回来纠正。
         // 不这么做的话按钮要等系统回调才变，手感上像是没点中。
         muted = target
+        return true
     }
 
-    fun toggleSpeaker() {
-        val target = if (speakerOn) CallAudioState.ROUTE_EARPIECE else CallAudioState.ROUTE_SPEAKER
-        service?.setAudioRoute(target)
-        speakerOn = !speakerOn
+    fun toggleSpeaker(): Boolean {
+        val activeService = service ?: return false
+        val enableSpeaker = !speakerOn
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            val type = if (enableSpeaker) CallEndpoint.TYPE_SPEAKER else CallEndpoint.TYPE_EARPIECE
+            val endpoint = availableEndpoints.firstOrNull { it.endpointType == type }
+            if (endpoint != null) {
+                activeService.requestCallEndpointChange(
+                    endpoint,
+                    activeService.mainExecutor,
+                    object : OutcomeReceiver<Void?, CallEndpointException> {
+                        override fun onResult(result: Void?) = Unit
+                        override fun onError(error: CallEndpointException) {
+                            // 系统回调才是最终状态；请求失败时恢复实际端点。
+                            speakerOn = currentEndpoint?.endpointType == CallEndpoint.TYPE_SPEAKER
+                        }
+                    },
+                )
+                speakerOn = enableSpeaker
+                return true
+            }
+        }
+
+        @Suppress("DEPRECATION")
+        activeService.setAudioRoute(
+            if (enableSpeaker) CallAudioState.ROUTE_SPEAKER else CallAudioState.ROUTE_EARPIECE
+        )
+        speakerOn = enableSpeaker
+        return true
     }
 
-    fun sendDtmf(digit: Char) {
-        call?.playDtmfTone(digit)
-        call?.stopDtmfTone()
+    fun toggleHold(): Boolean {
+        val currentCall = call ?: return false
+        if (!canHold && !onHold) return false
+        if (onHold) currentCall.unhold() else currentCall.hold()
+        onHold = !onHold
+        return true
+    }
+
+    fun holdForAdditionalCall(): Boolean {
+        if (onHold) return true
+        return toggleHold()
+    }
+
+    fun sendDtmf(digit: Char): Boolean {
+        val currentCall = call ?: return false
+        currentCall.playDtmfTone(digit)
+        // 立即 stop 会让不少基带根本来不及发送。保留 160 ms，接近实体键盘按键时长。
+        mainHandler.postDelayed({
+            if (call === currentCall) currentCall.stopDtmfTone()
+        }, 160L)
         dtmfTyped += digit
+        return true
     }
 
     fun addListener(listener: (Call?) -> Unit) {

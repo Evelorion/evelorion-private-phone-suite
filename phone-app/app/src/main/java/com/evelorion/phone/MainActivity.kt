@@ -14,6 +14,9 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
 import com.evelorion.phone.telecom.DialerRole
 import com.evelorion.phone.telecom.CallScreeningRole
@@ -23,6 +26,9 @@ import com.evelorion.phone.ui.PhoneState
 import com.evelorion.phone.ui.theme.PhoneM3Theme
 
 class MainActivity : ComponentActivity() {
+
+    private var dialIntentRevision by mutableIntStateOf(0)
+    private var dialIntentNumber = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
@@ -38,6 +44,13 @@ class MainActivity : ComponentActivity() {
         setContent {
             PhoneM3Theme {
                 val state = androidx.compose.runtime.remember { PhoneState() }
+
+                LaunchedEffect(dialIntentRevision) {
+                    if (dialIntentRevision > 0) {
+                        state.dial = dialIntentNumber
+                        state.go(com.evelorion.phone.ui.Screen.Dialpad)
+                    }
+                }
 
                 // 来电只有在本 App 是默认电话应用时才会交给 PhoneInCallService。
                 // 首次启动就申请，不能把这个关键步骤藏在设置页里等用户自己找。
@@ -125,10 +138,11 @@ class MainActivity : ComponentActivity() {
 
     /** 别的 App 通过 tel: 把号码递过来。填进拨号盘，不直接拨 —— 用户还没确认。 */
     private fun handleDialIntent(intent: Intent?) {
-        val data = intent?.data ?: return
-        if (data.scheme != "tel") return
-        val number = Uri.decode(data.schemeSpecificPart).orEmpty()
-        if (number.isNotBlank()) pendingDial = number
+        val data = intent?.data
+        val openEmptyDialpad = intent?.getBooleanExtra(EXTRA_OPEN_DIALPAD, false) == true
+        if (data?.scheme != "tel" && !openEmptyDialpad) return
+        dialIntentNumber = data?.let { Uri.decode(it.schemeSpecificPart).orEmpty() }.orEmpty()
+        dialIntentRevision++
     }
 
     /**
@@ -171,8 +185,7 @@ class MainActivity : ComponentActivity() {
     }
 
     companion object {
-        /** 待填进拨号盘的号码。从 tel: intent 进来时用。 */
-        var pendingDial: String = ""
+        const val EXTRA_OPEN_DIALPAD = "com.evelorion.phone.extra.OPEN_DIALPAD"
 
         val REQUIRED_PERMISSIONS = listOf(
             Manifest.permission.READ_PHONE_STATE,

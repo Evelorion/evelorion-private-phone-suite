@@ -68,9 +68,9 @@ fun CallDetailScreen(state: PhoneState) {
 
     // 历史记录要按这个人筛一遍。以前 PhoneData.history 从来没人填，
     // 详情页的历史区永远是空的 —— 而界面看不出「空」和「还没加载」的区别。
-    androidx.compose.runtime.LaunchedEffect(state.selectedId) {
+    androidx.compose.runtime.LaunchedEffect(state.selectedId, state.selectedCallId, number) {
         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-            runCatching { PhoneData.historyFor(state.selectedId, number) }
+            runCatching { PhoneData.historyFor(state.selectedId, number, state.selectedCallId) }
         }
     }
 
@@ -170,7 +170,7 @@ fun CallDetailScreen(state: PhoneState) {
                 .clip(RoundedCornerShape(32.dp)).background(scheme.surface).padding(vertical = 12.dp)
         ) {
             Text(
-                "通话历史",
+                if (state.selectedCallId != null) "本次通话与历史记录" else "通话历史",
                 Modifier.padding(start = 20.dp, bottom = 8.dp),
                 color = scheme.primary, fontSize = 14.sp
             )
@@ -182,7 +182,14 @@ fun CallDetailScreen(state: PhoneState) {
                     else -> Icons.Filled.Star
                 }
                 Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 11.dp),
+                    Modifier.fillMaxWidth()
+                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                        .clip(RoundedCornerShape(22.dp))
+                        .background(
+                            if (h.selected) scheme.primaryContainer.copy(alpha = 0.72f)
+                            else Color.Transparent
+                        )
+                        .padding(horizontal = 10.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
@@ -192,10 +199,28 @@ fun CallDetailScreen(state: PhoneState) {
                     )
                     Spacer(Modifier.width(14.dp))
                     Column(Modifier.weight(1f)) {
-                        Text(h.kind, color = scheme.onSurface, fontSize = 15.sp)
-                        Text(h.when_, color = scheme.onSurfaceVariant, fontSize = 13.sp)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(h.kind, color = scheme.onSurface, fontSize = 15.sp)
+                            if (h.selected) {
+                                Text(
+                                    "本次",
+                                    Modifier.padding(start = 8.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(scheme.primary)
+                                        .padding(horizontal = 7.dp, vertical = 2.dp),
+                                    color = scheme.onPrimary,
+                                    fontSize = 10.sp,
+                                )
+                            }
+                        }
+                        Text(h.date, color = scheme.onSurfaceVariant, fontSize = 13.sp)
+                        Text(h.timeRange, color = scheme.onSurfaceVariant, fontSize = 13.sp)
                     }
-                    Text(h.duration, color = scheme.onSurfaceVariant, fontSize = 13.sp)
+                    Text(
+                        h.duration,
+                        color = if (h.missed) scheme.error else scheme.onSurfaceVariant,
+                        fontSize = 12.sp,
+                    )
                 }
             }
         }

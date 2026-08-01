@@ -60,6 +60,7 @@ object CallRecorder {
                     // 系统 CallLog.DATE 记录呼叫开始时间；使用同一个时间基准，
                     // 后续才能精确找到并删除系统里的对应条目。
                     startedAt = createdAt,
+                    endedAt = now,
                     durationSeconds = duration,
                     dirty = true,
                 )

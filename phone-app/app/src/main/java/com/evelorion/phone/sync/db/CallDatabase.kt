@@ -10,6 +10,8 @@ import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 
 /**
  * 通话记录的本地库。
@@ -36,6 +38,8 @@ data class CallRecordEntity(
     /** incoming / outgoing / missed */
     val kind: String,
     val startedAt: Long,
+    /** 通话真正结束的时间；旧记录为 0，界面会明确标成“结束时间未记录”。 */
+    val endedAt: Long = 0,
     val durationSeconds: Int,
 
     /** 服务端版本号，推送时当 baseRev 用。0 表示服务端还没有这条。 */
@@ -93,13 +97,19 @@ interface CallDao {
     fun putState(state: CallSyncStateEntity)
 }
 
-@Database(entities = [CallRecordEntity::class, CallSyncStateEntity::class], version = 1, exportSchema = true)
+@Database(entities = [CallRecordEntity::class, CallSyncStateEntity::class], version = 2, exportSchema = true)
 abstract class CallDatabase : RoomDatabase() {
 
     abstract fun callDao(): CallDao
 
     companion object {
         private const val NAME = "fc_calls.db"
+
+        private val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE call_records ADD COLUMN endedAt INTEGER NOT NULL DEFAULT 0")
+            }
+        }
 
         @Volatile
         private var instance: CallDatabase? = null
@@ -118,6 +128,7 @@ abstract class CallDatabase : RoomDatabase() {
          */
         fun get(context: Context): CallDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(context.applicationContext, CallDatabase::class.java, NAME)
+                .addMigrations(MIGRATION_1_2)
                 .build().also { instance = it }
         }
     }

@@ -30,6 +30,8 @@ data class CallLog(
     val personId: String?,
     val group: String,
     val kind: CallKind,
+    val startedAt: Long,
+    val endedAt: Long,
     val time: String,
     val duration: String? = null,
     val repeatCount: Int = 1,
@@ -42,4 +44,11 @@ data class CallLog(
     val displayCity: String? = null
 )
 
-data class HistoryEntry(val kind: String, val when_: String, val duration: String, val missed: Boolean = false)
+data class HistoryEntry(
+    val kind: String,
+    val date: String,
+    val timeRange: String,
+    val duration: String,
+    val missed: Boolean = false,
+    val selected: Boolean = false,
+)
