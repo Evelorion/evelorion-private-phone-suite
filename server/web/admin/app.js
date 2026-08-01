@@ -128,16 +128,28 @@ async function finishAdminMfa(body) {
   await enterApp();
 }
 
+async function getAdminPasskeyResponse() {
+  const { options } = await adminApi('/v1/admin/login/mfa/options', {
+    method: 'POST', body: { mfaToken: pendingAdminMfa.mfaToken },
+  });
+  if (!options) throw new Error('这个管理员账号没有可用的通行密钥');
+  const credential = await navigator.credentials.get({ publicKey: reviveOptions(options) });
+  if (!credential) throw new Error('没有完成通行密钥验证');
+  return serializeCredential(credential);
+}
+
 $('lgPasskey').onclick = async () => {
   if (!pendingAdminMfa || !passkeySupported()) return msg('lgMsg', '当前浏览器不支持通行密钥');
   const btn = $('lgPasskey');
   busy(btn, true, '正在验证…');
   try {
-    const { options } = await adminApi('/v1/admin/login/mfa/options', {
-      method: 'POST', body: { mfaToken: pendingAdminMfa.mfaToken },
-    });
-    const credential = await navigator.credentials.get({ publicKey: reviveOptions(options) });
-    await finishAdminMfa({ passkey: serializeCredential(credential) });
+    const body = { passkey: await getAdminPasskeyResponse() };
+    if (pendingAdminMfa.requireAll && pendingAdminMfa.methods.includes('totp')) {
+      const code = prompt('还需要验证器验证码。请输入当前的 6 位码：');
+      if (!code) return;
+      body.totpCode = code.trim();
+    }
+    await finishAdminMfa(body);
   } catch (e) {
     msg('lgMsg', e?.name === 'NotAllowedError' ? '已取消通行密钥验证' : e.message);
   } finally {
@@ -152,7 +164,13 @@ $('lgCodeBtn').onclick = async () => {
   const btn = $('lgCodeBtn');
   busy(btn, true, '正在验证…');
   try {
-    await finishAdminMfa(/^\d{6}$/.test(code.replace(/\s/g, '')) ? { totpCode: code } : { backupCode: code });
+    const isTotp = /^\d{6}$/.test(code.replace(/\s/g, ''));
+    const body = isTotp ? { totpCode: code } : { backupCode: code };
+    if (isTotp && pendingAdminMfa.requireAll && pendingAdminMfa.methods.includes('passkey')) {
+      if (!passkeySupported()) throw new Error('当前浏览器不支持通行密钥，请改用备用码');
+      body.passkey = await getAdminPasskeyResponse();
+    }
+    await finishAdminMfa(body);
   } catch (e) {
     msg('lgMsg', e.message);
   } finally {
@@ -532,22 +550,42 @@ async function renderAdminMfa() {
   box.innerHTML = '';
   try {
     const status = await adminApi('/v1/admin/mfa/status');
-    const summary = el('div', 'row wrap-row');
-    summary.appendChild(el('span', `badge ${status.totpEnabled ? 'on' : 'off'}`, `验证器：${status.totpEnabled ? '已开启' : '未开启'}`));
-    summary.appendChild(el('span', `badge ${status.passkeyEnabled ? 'on' : 'off'}`, `通行密钥：${status.passkeyEnabled ? '已开启' : '未开启'}`));
-    summary.appendChild(el('span', 'badge', `备份码：${status.backupCodesLeft}`));
-    box.appendChild(summary);
+    const section = el('div');
+    const addRow = (title, description, control) => {
+      const row = el('div', 'switch-row');
+      const text = el('div', 'row-text');
+      text.append(el('div', 'row-title', title), el('div', 'row-desc', description));
+      row.append(text, control);
+      section.appendChild(row);
+    };
+    const makeSwitch = (checked, disabled = false) => {
+      const label = el('label', 'switch');
+      const input = el('input');
+      input.type = 'checkbox';
+      input.checked = checked;
+      input.disabled = disabled;
+      label.append(input, el('span', 'track'), el('span', 'thumb'));
+      return { label, input };
+    };
 
-    const actions = el('div', 'actions wrap-row');
-    const totp = el('button', null, status.totpEnabled ? '关闭验证器' : '设置验证器');
-    totp.onclick = async () => {
+    const totpSwitch = makeSwitch(status.totpEnabled);
+    addRow(
+      '验证器 App',
+      status.totpEnabled
+        ? '已开启；Google Authenticator、1Password 等每 30 秒生成一个 6 位码'
+        : 'Google Authenticator、1Password 这类，每 30 秒一个 6 位码',
+      totpSwitch.label,
+    );
+    totpSwitch.input.onchange = async () => {
+      const turningOn = totpSwitch.input.checked;
       try {
-        if (status.totpEnabled) {
+        if (!turningOn) {
           const code = prompt('输入当前验证器的 6 位验证码以关闭：');
-          if (!code) return;
+          if (!code) { totpSwitch.input.checked = true; return; }
           await adminApi('/v1/admin/mfa/totp/disable', { method: 'POST', body: { code } });
           toast('验证器已关闭');
         } else {
+          totpSwitch.input.checked = false;
           const setup = await adminApi('/v1/admin/mfa/totp/setup', { method: 'POST' });
           const code = prompt(`请在验证器中添加下面的密钥，然后输入生成的 6 位验证码：\n\n${setup.secret}`);
           if (!code) return;
@@ -559,15 +597,43 @@ async function renderAdminMfa() {
       } catch (e) { toast(e.message, true); }
     };
 
-    const add = el('button', 'primary', '添加通行密钥');
+    const backup = el('button', null, status.backupCodesLeft ? '重新生成' : '生成');
+    backup.disabled = !status.totpEnabled && !status.passkeyEnabled;
+    addRow(
+      '备用码',
+      status.backupCodesLeft
+        ? `还剩 ${status.backupCodesLeft} 个；重新生成会让旧码失效`
+        : '用于无法使用验证器或通行密钥时登录',
+      backup,
+    );
+    backup.onclick = async () => {
+      if (status.backupCodesLeft && !confirm('旧的管理员备用码会立即失效，继续吗？')) return;
+      try {
+        const result = await adminApi('/v1/admin/mfa/backup/regenerate', { method: 'POST' });
+        showBackupCodes(result.backupCodes);
+        await renderAdminMfa();
+      } catch (e) { toast(e.message, true); }
+    };
+
+    const add = el('button', 'primary', status.passkeys.length ? '再添加一个' : '添加');
+    add.disabled = !passkeySupported();
+    addRow(
+      '通行密钥',
+      status.passkeys.length
+        ? `已添加 ${status.passkeys.length} 个；可使用指纹、面容、系统 PIN 或硬件密钥`
+        : '尚未添加；可使用指纹、面容、系统 PIN 或硬件密钥',
+      add,
+    );
     add.onclick = async () => {
       if (!passkeySupported()) return toast('当前浏览器不支持通行密钥', true);
+      const name = prompt('给这个通行密钥起个名字：', '管理员通行密钥');
+      if (name === null) return;
       try {
         const start = await adminApi('/v1/admin/mfa/passkey/register/options', { method: 'POST' });
         const credential = await navigator.credentials.create({ publicKey: reviveOptions(start.options) });
         const result = await adminApi('/v1/admin/mfa/passkey/register/verify', {
           method: 'POST',
-          body: { token: start.token, name: '管理员通行密钥', response: serializeCredential(credential) },
+          body: { token: start.token, name: name.trim() || '管理员通行密钥', response: serializeCredential(credential) },
         });
         if (result.backupCodes) showBackupCodes(result.backupCodes);
         toast('通行密钥已添加');
@@ -577,30 +643,52 @@ async function renderAdminMfa() {
       }
     };
 
-    const backup = el('button', null, '重新生成备份码');
-    backup.disabled = !status.totpEnabled && !status.passkeyEnabled;
-    backup.onclick = async () => {
-      if (!confirm('旧的管理员备份码会立即失效，继续吗？')) return;
-      try {
-        const result = await adminApi('/v1/admin/mfa/backup/regenerate', { method: 'POST' });
-        showBackupCodes(result.backupCodes);
-        await renderAdminMfa();
-      } catch (e) { toast(e.message, true); }
-    };
-    actions.append(totp, add, backup);
-    box.appendChild(actions);
-
     if (status.passkeys.length) {
-      box.appendChild(table(['名称', '添加时间', '上次使用', ''], status.passkeys.map((key) => {
+      const list = el('div');
+      status.passkeys.forEach((key) => {
+        const item = el('div', 'row');
+        item.style.cssText = 'justify-content:space-between;gap:12px;padding:9px 0 9px 14px;border-bottom:1px solid var(--line,var(--border))';
+        const info = el('div', 'grow');
+        info.append(
+          el('div', null, key.name),
+          el('div', 'row-desc', `${fmtTime(key.created_at)} 添加 · ${key.last_used_at ? `${fmtTime(key.last_used_at)} 使用过` : '尚未使用'}`),
+        );
         const remove = el('button', 'sm danger', '删除');
         remove.onclick = async () => {
           if (!confirm(`删除「${key.name}」？`)) return;
-          await adminApi(`/v1/admin/mfa/passkey/${encodeURIComponent(key.id)}`, { method: 'DELETE' });
-          await renderAdminMfa();
+          try {
+            await adminApi(`/v1/admin/mfa/passkey/${encodeURIComponent(key.id)}`, { method: 'DELETE' });
+            await renderAdminMfa();
+          } catch (e) { toast(e.message, true); }
         };
-        return [key.name, fmtTime(key.created_at), fmtTime(key.last_used_at), remove];
-      })));
+        item.append(info, remove);
+        list.appendChild(item);
+      });
+      section.appendChild(list);
     }
+
+    const canRequireAll = status.totpEnabled && status.passkeyEnabled;
+    const requireAllSwitch = makeSwitch(status.requireAll, !canRequireAll);
+    addRow(
+      '两种都要验证',
+      canRequireAll
+        ? (status.requireAll ? '登录时验证器和通行密钥都要通过；备用码仍可应急登录' : '默认通过其中一种即可')
+        : '验证器和通行密钥都设置好之后才能打开',
+      requireAllSwitch.label,
+    );
+    requireAllSwitch.input.onchange = async () => {
+      try {
+        await adminApi('/v1/admin/mfa/settings', {
+          method: 'POST', body: { requireAll: requireAllSwitch.input.checked },
+        });
+        await renderAdminMfa();
+      } catch (e) {
+        requireAllSwitch.input.checked = !requireAllSwitch.input.checked;
+        toast(e.message, true);
+      }
+    };
+
+    box.appendChild(section);
   } catch (e) {
     box.appendChild(el('div', 'err', '读取二次验证状态失败：' + e.message));
   }

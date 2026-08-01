@@ -785,6 +785,19 @@ async function main(): Promise<void> {
     check('管理员验证器确认后生成一次性备份码',
       adminTotpConfirm.ok === true && adminTotpConfirm.backupCodes?.length === 8);
 
+    const adminMfaStatus = await admCall('/v1/admin/mfa/status', {}, admCookie);
+    check('管理员 MFA 状态返回通行密钥列表和双重验证策略',
+      Array.isArray(adminMfaStatus.passkeys) && adminMfaStatus.requireAll === false);
+    const adminRequireBothTooEarly = await admCall('/v1/admin/mfa/settings', {
+      method: 'POST', body: JSON.stringify({ requireAll: true }),
+    }, admCookie);
+    check('管理员只设置一种方式时不能开启两种都验证',
+      adminRequireBothTooEarly.__status === 400);
+    const adminKeepEither = await admCall('/v1/admin/mfa/settings', {
+      method: 'POST', body: JSON.stringify({ requireAll: false }),
+    }, admCookie);
+    check('管理员可以明确设置任一种方式通过', adminKeepEither.ok === true);
+
     const adminMfaLogin = await admCall('/v1/admin/login', {
       method: 'POST', body: JSON.stringify({ username: 'admin1', password: 'a-very-long-admin-pass-2026' }),
     });
@@ -820,6 +833,55 @@ async function main(): Promise<void> {
       method: 'POST', body: JSON.stringify({ mfaToken: backupReuseStart.mfaToken, backupCode }),
     });
     check('管理员备份码只能使用一次', backupReuse.__status === 401);
+
+    // 浏览器负责生成 WebAuthn 公钥；这里直接放一条占位记录，验证管理员的
+    // 列表、requireAll 策略和备用码应急语义，不伪造浏览器签名。
+    const adminSqlite = new Database(DB);
+    const adminId = (adminSqlite.prepare('SELECT id FROM admins WHERE username = ?').get('admin1') as { id: string }).id;
+    const fakeAdminPasskeyId = randomUUID();
+    adminSqlite.prepare(
+      `INSERT INTO admin_mfa_passkeys
+         (id, admin_id, credential_id, public_key, sign_count, transports, name, created_at)
+       VALUES (?, ?, ?, ?, 0, '', ?, ?)`
+    ).run(fakeAdminPasskeyId, adminId, 'test-admin-credential', Buffer.alloc(32), '测试管理员通行密钥', Date.now());
+    adminSqlite.prepare('UPDATE admin_mfa_settings SET passkey_enabled = 1 WHERE admin_id = ?').run(adminId);
+    adminSqlite.close();
+
+    const adminPasskeyStatus = await admCall('/v1/admin/mfa/status', {}, admCookie);
+    check('管理员状态会列出已登记通行密钥',
+      adminPasskeyStatus.passkeys?.some((key: any) => key.name === '测试管理员通行密钥'));
+    const requireBoth = await admCall('/v1/admin/mfa/settings', {
+      method: 'POST', body: JSON.stringify({ requireAll: true }),
+    }, admCookie);
+    check('管理员两种方式都设置好后可以开启两种都验证', requireBoth.ok === true);
+
+    const requireBothStart = await admCall('/v1/admin/login', {
+      method: 'POST', body: JSON.stringify({ username: 'admin1', password: 'a-very-long-admin-pass-2026' }),
+    });
+    check('管理员登录会明确返回两种都要验证',
+      requireBothStart.requireAll === true && requireBothStart.methods?.includes('passkey'));
+    const totpAlone = await admCall('/v1/admin/login/mfa/complete', {
+      method: 'POST', body: JSON.stringify({
+        mfaToken: requireBothStart.mfaToken,
+        totpCode: currentCode(adminTotpSetup.secret),
+      }),
+    });
+    check('两种都要时只通过验证器不能登录', totpAlone.__status === 401);
+
+    const recoveryStart = await admCall('/v1/admin/login', {
+      method: 'POST', body: JSON.stringify({ username: 'admin1', password: 'a-very-long-admin-pass-2026' }),
+    });
+    const recoveryLogin = await admCall('/v1/admin/login/mfa/complete', {
+      method: 'POST', body: JSON.stringify({
+        mfaToken: recoveryStart.mfaToken,
+        backupCode: adminTotpConfirm.backupCodes[1],
+      }),
+    });
+    check('两种都要时备用码仍可应急登录', recoveryLogin.ok === true);
+
+    const removeAdminPasskey = await admCall(
+      `/v1/admin/mfa/passkey/${fakeAdminPasskeyId}`, { method: 'DELETE' }, admCookie);
+    check('删除最后一个管理员通行密钥会关闭两种都验证', removeAdminPasskey.remaining === 0);
 
     const logout = await admCall('/v1/admin/logout', { method: 'POST' }, admCookie);
     check('管理员退出成功', logout.ok === true);

@@ -198,6 +198,8 @@ CREATE TABLE IF NOT EXISTS admin_mfa_settings (
   admin_id       TEXT PRIMARY KEY REFERENCES admins(id) ON DELETE CASCADE,
   totp_enabled   INTEGER NOT NULL DEFAULT 0,
   passkey_enabled INTEGER NOT NULL DEFAULT 0,
+  -- 与普通用户一致：0 = 任一方式通过，1 = 验证器和通行密钥都要通过。
+  require_all     INTEGER NOT NULL DEFAULT 0,
   updated_at     INTEGER NOT NULL
 );
 
@@ -295,6 +297,15 @@ function migrateAddMfaLoginKind(): void {
   }
 }
 migrateAddMfaLoginKind();
+
+/** 给已部署的管理员 MFA 设置补上「两种都要验证」策略列。 */
+function migrateAddAdminMfaRequireAll(): void {
+  const cols = db.prepare('PRAGMA table_info(admin_mfa_settings)').all() as { name: string }[];
+  if (!cols.some((c) => c.name === 'require_all')) {
+    db.exec('ALTER TABLE admin_mfa_settings ADD COLUMN require_all INTEGER NOT NULL DEFAULT 0');
+  }
+}
+migrateAddAdminMfaRequireAll();
 
 /** 允许的 collection。不做白名单的话客户端可以拿它当任意键值存储用。 */
 export const COLLECTIONS = ['contacts', 'calls'] as const;

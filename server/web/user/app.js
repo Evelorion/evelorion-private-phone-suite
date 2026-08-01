@@ -668,6 +668,7 @@ async function refreshMfa() {
       ? (st.requireAll ? '登录时验证器和通行密钥都要过' : '默认通过其中一种即可')
       : '两种都设置好之后才能打开';
 
+    $('passkeyAdd').textContent = st.passkeys.length ? '再添加一个' : '添加';
     $('passkeyAdd').disabled = !MFA.passkeySupported();
     if (!MFA.passkeySupported()) $('passkeyAdd').textContent = '浏览器不支持';
   } catch (e) {

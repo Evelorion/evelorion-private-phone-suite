@@ -27,7 +27,10 @@ type Settings = {
   admin_id: string;
   totp_enabled: number;
   passkey_enabled: number;
+  require_all: number;
 };
+
+type AdminMfaMethod = 'totp' | 'passkey' | 'backup';
 
 type PasskeyRow = {
   id: string;
@@ -45,22 +48,24 @@ function rpConfig() {
 
 function settings(adminId: string): Settings {
   return (db.prepare('SELECT * FROM admin_mfa_settings WHERE admin_id = ?').get(adminId) as Settings | undefined)
-    ?? { admin_id: adminId, totp_enabled: 0, passkey_enabled: 0 };
+    ?? { admin_id: adminId, totp_enabled: 0, passkey_enabled: 0, require_all: 0 };
 }
 
 function updateSettings(adminId: string, patch: Partial<Settings>): void {
   const current = settings(adminId);
   db.prepare(
-    `INSERT INTO admin_mfa_settings (admin_id, totp_enabled, passkey_enabled, updated_at)
-     VALUES (?, ?, ?, ?)
+    `INSERT INTO admin_mfa_settings (admin_id, totp_enabled, passkey_enabled, require_all, updated_at)
+     VALUES (?, ?, ?, ?, ?)
      ON CONFLICT(admin_id) DO UPDATE SET
        totp_enabled = excluded.totp_enabled,
        passkey_enabled = excluded.passkey_enabled,
+       require_all = excluded.require_all,
        updated_at = excluded.updated_at`
   ).run(
     adminId,
     patch.totp_enabled ?? current.totp_enabled,
     patch.passkey_enabled ?? current.passkey_enabled,
+    patch.require_all ?? current.require_all,
     Date.now(),
   );
 }
@@ -94,7 +99,25 @@ export function createAdminLoginChallenge(adminId: string, req: FastifyRequest) 
     clientIp(req, config.trustProxy),
     String(req.headers['user-agent'] ?? '').slice(0, 200),
   );
-  return { mfaRequired: true, mfaToken: token, methods: methods(adminId) };
+  return {
+    mfaRequired: true,
+    mfaToken: token,
+    methods: methods(adminId),
+    requireAll: settings(adminId).require_all === 1,
+  };
+}
+
+function adminMfaSatisfied(adminId: string, passed: Set<AdminMfaMethod>): boolean {
+  // 备用码是应急入口，设备丢失时仍应能恢复管理员登录。
+  if (passed.has('backup')) return true;
+  const s = settings(adminId);
+  const need: Array<'totp' | 'passkey'> = [];
+  if (s.totp_enabled) need.push('totp');
+  if (s.passkey_enabled) need.push('passkey');
+  if (need.length === 0) return true;
+  return s.require_all === 1
+    ? need.every((method) => passed.has(method))
+    : need.some((method) => passed.has(method));
 }
 
 function takeChallenge(token: string, purpose: 'login' | 'register') {
@@ -199,22 +222,26 @@ export function registerAdminMfaRoutes(app: FastifyInstance): void {
       { username: string; disabled: number } | undefined;
     if (!admin || admin.disabled) throw new HttpError(401, 'invalid_credentials', '管理员账户不可用');
 
-    let passed = false;
+    const passed = new Set<AdminMfaMethod>();
     if (typeof body.totpCode === 'string') {
       const row = db.prepare(
         'SELECT secret FROM admin_mfa_totp WHERE admin_id = ? AND confirmed_at IS NOT NULL'
       ).get(stored.admin_id) as { secret: string } | undefined;
-      passed = !!row && verifyCode(row.secret, body.totpCode);
-    } else if (typeof body.backupCode === 'string') {
+      if (row && verifyCode(row.secret, body.totpCode)) passed.add('totp');
+    }
+    if (typeof body.backupCode === 'string') {
       const hash = hashBackupCode(body.backupCode);
       const used = db.prepare(
         'DELETE FROM admin_mfa_backup_codes WHERE admin_id = ? AND code_hash = ?'
       ).run(stored.admin_id, hash);
-      passed = used.changes === 1;
-    } else if (body.passkey && stored.challenge) {
-      passed = await verifyAdminPasskey(stored.admin_id, stored.challenge, body.passkey);
+      if (used.changes === 1) passed.add('backup');
     }
-    if (!passed) throw new HttpError(401, 'mfa_failed', '管理员二次验证未通过');
+    if (body.passkey && stored.challenge) {
+      if (await verifyAdminPasskey(stored.admin_id, stored.challenge, body.passkey)) passed.add('passkey');
+    }
+    if (!adminMfaSatisfied(stored.admin_id, passed)) {
+      throw new HttpError(401, 'mfa_failed', '管理员二次验证未通过');
+    }
 
     const session = createAdminSession(stored.admin_id, stored.ip, stored.user_agent);
     db.prepare('UPDATE admins SET last_login_at = ? WHERE id = ?').run(Date.now(), stored.admin_id);
@@ -236,9 +263,24 @@ export function registerAdminMfaRoutes(app: FastifyInstance): void {
       totpEnabled: s.totp_enabled === 1,
       totpPending: !!pending && pending.confirmed_at === null,
       passkeyEnabled: s.passkey_enabled === 1,
+      requireAll: s.require_all === 1,
       passkeys,
       backupCodesLeft: backup.n,
     };
+  });
+
+  app.post('/v1/admin/mfa/settings', async (req) => {
+    const admin = requireAdmin(req);
+    const body = req.body as Record<string, unknown>;
+    if (typeof body.requireAll !== 'boolean') {
+      throw new HttpError(400, 'bad_request', 'requireAll 必须是布尔值');
+    }
+    const s = settings(admin.adminId);
+    if (body.requireAll && !(s.totp_enabled && s.passkey_enabled)) {
+      throw new HttpError(400, 'need_both_methods', '请先把验证器和通行密钥都设置好');
+    }
+    updateSettings(admin.adminId, { require_all: body.requireAll ? 1 : 0 });
+    return { ok: true };
   });
 
   app.post('/v1/admin/mfa/totp/setup', async (req) => {
@@ -273,7 +315,7 @@ export function registerAdminMfaRoutes(app: FastifyInstance): void {
       .get(admin.adminId) as { secret: string } | undefined;
     if (!row || !verifyCode(row.secret, code)) throw new HttpError(401, 'bad_code', '验证码不正确');
     db.prepare('DELETE FROM admin_mfa_totp WHERE admin_id = ?').run(admin.adminId);
-    updateSettings(admin.adminId, { totp_enabled: 0 });
+    updateSettings(admin.adminId, { totp_enabled: 0, require_all: 0 });
     if (!adminMfaRequired(admin.adminId)) db.prepare('DELETE FROM admin_mfa_backup_codes WHERE admin_id = ?').run(admin.adminId);
     return { ok: true };
   });
@@ -348,7 +390,7 @@ export function registerAdminMfaRoutes(app: FastifyInstance): void {
     db.prepare('DELETE FROM admin_mfa_passkeys WHERE id = ? AND admin_id = ?').run(id, admin.adminId);
     const left = db.prepare('SELECT COUNT(*) AS n FROM admin_mfa_passkeys WHERE admin_id = ?')
       .get(admin.adminId) as { n: number };
-    if (left.n === 0) updateSettings(admin.adminId, { passkey_enabled: 0 });
+    if (left.n === 0) updateSettings(admin.adminId, { passkey_enabled: 0, require_all: 0 });
     if (!adminMfaRequired(admin.adminId)) db.prepare('DELETE FROM admin_mfa_backup_codes WHERE admin_id = ?').run(admin.adminId);
     return { ok: true, remaining: left.n };
   });
