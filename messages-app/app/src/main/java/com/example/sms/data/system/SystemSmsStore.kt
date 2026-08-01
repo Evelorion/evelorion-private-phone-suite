@@ -36,8 +36,14 @@ class SystemSmsStore(private val context: Context) {
     fun isDefaultSmsApp(): Boolean =
         SmsRoleCheck.isDefaultSmsApp(context)
 
-    /** 读取系统短信库全部短信（收件箱 + 已发送） */
-    suspend fun readAll(limit: Int = 5000): List<RawSms> = withContext(Dispatchers.IO) {
+    /**
+     * 首次只读取最近的短信（收件箱 + 已发送）。
+     *
+     * 旧版默认一次扫描 5000 条，首次启动时还要为每个会话匹配联系人，
+     * 在短信较多的设备上会长时间停在加载状态。启动导入只负责让首页尽快
+     * 可用，因此限制为最近 100 条；后续收到的新短信会实时写入本地库。
+     */
+    suspend fun readAll(limit: Int = INITIAL_IMPORT_LIMIT): List<RawSms> = withContext(Dispatchers.IO) {
         if (!canRead()) return@withContext emptyList()
         val out = mutableListOf<RawSms>()
         val projection = arrayOf(
@@ -75,6 +81,10 @@ class SystemSmsStore(private val context: Context) {
             }
         }
         out
+    }
+
+    private companion object {
+        const val INITIAL_IMPORT_LIMIT = 100
     }
 
     /** 把收到的短信写进系统收件箱（仅默认短信应用需要且被允许） */
