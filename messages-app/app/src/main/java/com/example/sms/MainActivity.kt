@@ -422,14 +422,6 @@ fun SmsApp(
                 onSeedColor = vm::setSeedColor,
                 onSetDefaultApp = requestDefaultSmsApp,
                 onReimport = vm::reimport,
-                onPrivacyPolicy = {
-                    context.startActivity(
-                        Intent(
-                            Intent.ACTION_VIEW,
-                            Uri.parse("https://contacts.etheraler.com/privacy/"),
-                        )
-                    )
-                },
             )
         }
     }
