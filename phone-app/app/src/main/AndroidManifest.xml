@@ -10,6 +10,7 @@
         ANSWER_PHONE_CALLS   自己的接听按钮点不动（只能让用户去系统界面接）
         MANAGE_OWN_CALLS     Telecom 不认这个 App
         READ_CALL_LOG        最近通话是空的
+        WRITE_CALL_LOG       通话结束后无法删除系统保存的副本
     -->
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
     <uses-permission android:name="android.permission.READ_PHONE_NUMBERS" />

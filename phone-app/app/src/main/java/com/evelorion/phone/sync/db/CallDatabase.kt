@@ -21,7 +21,8 @@ import androidx.room.RoomDatabase
  * 把通话记录留在一个所有 App 都能翻的地方，和这个前提是矛盾的。
  *
  * 所以自己存一份，加密，并同步到用户自己的服务器。
- * 系统那份仍然在（我们没权限也不该去删），这里只是不依赖它。
+ * 默认电话应用会在通话结束后先写入这里，再精确删除系统 CallLog 中的副本。
+ * 如果用户没有授予 WRITE_CALL_LOG，系统副本可能仍然存在，但这里始终不依赖它。
  */
 
 @Entity(tableName = "call_records")

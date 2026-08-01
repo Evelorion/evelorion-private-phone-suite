@@ -178,6 +178,7 @@ class MainActivity : ComponentActivity() {
             Manifest.permission.READ_PHONE_STATE,
             Manifest.permission.CALL_PHONE,
             Manifest.permission.READ_CALL_LOG,
+            Manifest.permission.WRITE_CALL_LOG,
             Manifest.permission.ANSWER_PHONE_CALLS,
         )
     }

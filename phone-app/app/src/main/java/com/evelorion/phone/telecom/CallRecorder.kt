@@ -21,8 +21,8 @@ import java.util.concurrent.Executors
  * 而且系统那条路要 READ_CALL_LOG 权限；用户拒绝的话，这个 App 自己的
  * 通话记录也跟着没了，那说不过去 —— 这通电话本来就是它接的。
  *
- * 所以自己记一份。系统那份仍然会被 CallSyncEngine 收编，
- * 靠时间水位线去重，两边不会打架。
+ * 所以自己记一份。写入成功后再安排 [SystemCallLogCleanupWorker]，等待系统
+ * CallLog 落盘并删掉对应条目，最终只在本 App 中保留记录。
  */
 object CallRecorder {
 
@@ -36,27 +36,42 @@ object CallRecorder {
         if (number.isBlank()) return
 
         val now = System.currentTimeMillis()
+        val createdAt = call.details?.creationTimeMillis?.takeIf { it > 0L }
+            ?: connectedAt.takeIf { it > 0L }
+            ?: now
         // connectedAt 为 0 表示从未接通 —— 那就是一通未接来电
         val answered = connectedAt > 0
         val duration = if (answered) ((now - connectedAt) / 1000).toInt() else 0
         val outgoing = call.details?.callDirection == Call.Details.DIRECTION_OUTGOING
+        val kind = when {
+            outgoing -> "outgoing"
+            answered -> "incoming"
+            else -> "missed"
+        }
+        val recordId = UUID.randomUUID().toString()
 
         io.execute {
             CallDatabase.get(context).callDao().upsert(
                 CallRecordEntity(
-                    uuid = UUID.randomUUID().toString(),
+                    uuid = recordId,
                     number = number,
                     name = resolvedName,
-                    kind = when {
-                        outgoing -> "outgoing"
-                        answered -> "incoming"
-                        else -> "missed"
-                    },
-                    // 未接来电没有接通时间，用挂断时间当发生时间
-                    startedAt = if (answered) connectedAt else now,
+                    kind = kind,
+                    // 系统 CallLog.DATE 记录呼叫开始时间；使用同一个时间基准，
+                    // 后续才能精确找到并删除系统里的对应条目。
+                    startedAt = createdAt,
                     durationSeconds = duration,
                     dirty = true,
                 )
+            )
+            SystemCallLogCleanupWorker.schedule(
+                context = context,
+                recordId = recordId,
+                number = number,
+                kind = kind,
+                startedAt = createdAt,
+                endedAt = now,
+                durationSeconds = duration,
             )
             // 顺手排一次同步。失败也无所谓，周期任务会补上。
             runCatching { CallSyncScheduler.syncNow(context) }
