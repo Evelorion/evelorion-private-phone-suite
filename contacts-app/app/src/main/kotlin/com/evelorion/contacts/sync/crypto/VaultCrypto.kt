@@ -111,6 +111,14 @@ object VaultCrypto {
     fun deriveCollectionKey(dek: ByteArray, salt: ByteArray, collection: String): ByteArray =
         Crypto.hkdf(dek, salt, "fc.collection.$collection.v1")
 
+    /**
+     * 稳定的 collection 子密钥。v1 错把口令 KDF 的 salt 当成了这里的 salt，
+     * 口令参数变化后会导致电话 App 和网页拿到不同密钥。v2 只依赖账户 DEK，
+     * 空 salt 按 RFC 5869 处理，collection 名和版本号继续做域分离。
+     */
+    fun deriveCollectionKeyV2(dek: ByteArray, collection: String): ByteArray =
+        Crypto.hkdf(dek, ByteArray(0), "fc.collection.$collection.v2")
+
     fun wrapDek(kek: ByteArray, dek: ByteArray, forRecovery: Boolean): ByteArray =
         Crypto.seal(kek, dek, aadFor(forRecovery))
 

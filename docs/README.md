@@ -61,7 +61,7 @@ https://contacts.example.com
 | **RKEK** | 从恢复码派生，DEK 的**第二条包裹路径** | 不存 |
 | **记录密钥** | `HKDF(DEK, salt=联系人uuid)`，每条联系人一把 | 不存，每次现算 |
 | **盲索引密钥** | `HKDF(DEK, "fc.idx.v1")`，用来按号码查人 | 不存，每次现算 |
-| **collection 子密钥** | `HKDF(DEK, "fc.collection.calls.v1")`，交给电话 App | 不存 |
+| **collection 子密钥** | `HKDF(DEK, "fc.collection.calls.v2")`，交给电话 App；不再绑定口令 KDF salt | 不存 |
 
 关键性质：**改口令只需要重新包裹 DEK**（一个 60 字节的 blob），
 服务器上几千条联系人密文一个字节都不用动。这就是分两层的意义。

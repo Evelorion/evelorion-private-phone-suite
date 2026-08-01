@@ -76,6 +76,11 @@ export function deriveCollectionKey(dek: Buffer, salt: Buffer, collection: strin
   return hkdf(dek, salt, `fc.collection.${collection}.v1`);
 }
 
+/** 稳定的 collection 子密钥；不再绑定可能随口令参数变化的 KDF salt。 */
+export function deriveCollectionKeyV2(dek: Buffer, collection: string): Buffer {
+  return hkdf(dek, Buffer.alloc(0), `fc.collection.${collection}.v2`);
+}
+
 // ---------- AES-256-GCM ----------
 
 export function seal(key: Buffer, plaintext: Buffer, aad: Buffer): Buffer {

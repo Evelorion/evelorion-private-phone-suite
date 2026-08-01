@@ -83,6 +83,8 @@ $('run').onclick = async () => {
     ck('盲索引密钥', C.toHex(await C.deriveIndexKey(dek, salt)) === V.indexKeyHex);
     ck('collection 子密钥 (calls)',
        C.toHex(await C.deriveCollectionKey(dek, salt, 'calls')) === V.collectionKey_calls);
+    ck('稳定 collection v2 子密钥 (calls)',
+       C.toHex(await C.deriveCollectionKeyV2(dek, 'calls')) === V.collectionKeyV2_calls);
 
     // ---- AAD
     ck('记录 AAD', C.toHex(C.recordAad(uuid, 7, 1)) === V.recordAadHex, C.toHex(C.recordAad(uuid, 7, 1)));

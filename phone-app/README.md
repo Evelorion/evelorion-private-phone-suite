@@ -123,7 +123,7 @@ app/src/main/java/com/evelorion/phone/
 
 这个 App 拿到的**不是主密钥**，只有：
 
-- `HKDF(DEK, "fc.collection.calls.v1")` 派生的 calls 子密钥
+- `HKDF(DEK, "fc.collection.calls.v2")` 派生的稳定 calls 子密钥
 - 15 分钟的短期访问令牌（刷新令牌不给）
 
 所以它能加解密通话记录，但**推不回 DEK**，解不开任何一条联系人。

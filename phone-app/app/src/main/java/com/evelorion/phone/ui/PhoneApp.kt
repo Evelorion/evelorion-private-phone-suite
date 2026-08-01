@@ -229,6 +229,10 @@ fun PhoneApp(
                     onRequestDialerRole = onRequestDialerRole,
                     onRequestCallScreeningRole = onRequestCallScreeningRole,
                     onOpenContacts = onOpenContacts,
+                    onSyncCalls = {
+                        com.evelorion.phone.sync.work.CallSyncScheduler.syncNow(context)
+                        Toast.makeText(context, "正在同步通话记录", Toast.LENGTH_SHORT).show()
+                    },
                 )
                 Screen.Recordings -> RecordingsScreen(state)
                 Screen.BlockedNumbers -> BlockedNumbersScreen(state)

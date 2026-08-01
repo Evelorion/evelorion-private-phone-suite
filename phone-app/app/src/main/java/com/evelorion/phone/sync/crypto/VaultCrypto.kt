@@ -13,7 +13,7 @@ package com.evelorion.phone.sync.crypto
  *   deriveRecoveryKek / RecoveryCode                 ← 恢复码那一整条路
  *
  * 删掉不是因为编译不过，是因为**电话 App 不该有这些能力**。
- * 它拿到的只是 HKDF(DEK, "fc.collection.calls.v1") 派生出的子密钥，
+ * 它拿到的只是 HKDF(DEK, "fc.collection.calls.v2") 派生出的子密钥，
  * 从设计上就推不回 DEK。如果这个文件里留着建库和解包的代码，
  * 哪天有人「顺手」在电话 App 里加个登录框，边界就没了 ——
  * 而那时候没有任何编译错误会提醒他。

@@ -35,6 +35,7 @@ out.blobIdOfAAAA = C.blobId(dek, Buffer.from('AAAA', 'utf8'));
 out.itemId_phones_e164 = C.itemId('phones', '+8613800138000');
 out.itemId_groups_family = C.itemId('groups', '家人');
 out.collectionKey_calls = C.deriveCollectionKey(dek, salt, 'calls').toString('hex');
+out.collectionKeyV2_calls = C.deriveCollectionKeyV2(dek, 'calls').toString('hex');
 out.manifest_twoEntries = encodeManifest(new Map([
   ['11111111-2222-3333-4444-555555555555', 7],
   ['00000000-0000-4000-8000-000000000001', 1],

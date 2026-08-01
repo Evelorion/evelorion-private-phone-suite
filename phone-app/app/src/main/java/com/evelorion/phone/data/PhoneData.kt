@@ -163,6 +163,7 @@ object PhoneData {
     fun settingsStatus(context: Context): SettingsStatus {
         val vault = VaultBridge.session(context)
         val dao = runCatching { CallDatabase.get(context).callDao() }.getOrNull()
+        val syncState = runCatching { dao?.state() }.getOrNull()
         return SettingsStatus(
             isDefaultDialer = DialerRole.isDefault(context),
             isCallScreeningEnabled = CallScreeningRole.isHeld(context),
@@ -170,6 +171,7 @@ object PhoneData {
             vaultMessage = vault.message,
             callCount = runCatching { dao?.recent(9999)?.size ?: 0 }.getOrDefault(0),
             pendingCount = runCatching { dao?.countPending() ?: 0 }.getOrDefault(0),
+            callSyncError = syncState?.lastError.orEmpty(),
             familyCount = people.count { it.family },
             blockedCount = runCatching { BlockedNumberStore.all(context).size }.getOrDefault(0),
         )

@@ -23,7 +23,7 @@ import com.evelorion.contacts.sync.crypto.VaultCrypto
  *
  * ── 交出去的是什么 ────────────────────────────────────────────
  *
- * **不是 DEK 本身**，而是 `HKDF(DEK, "fc.collection.calls.v1")` 派生出的子密钥。
+ * **不是 DEK 本身**，而是 `HKDF(DEK, "fc.collection.calls.v2")` 派生出的子密钥。
  *
  * 这个区分很要紧：电话 App 拿这把子密钥能加解密通话记录，但推不回 DEK，
  * 所以它解不开任何一条联系人。万一电话 App 出了漏洞被攻破，
@@ -98,10 +98,9 @@ class VaultBridgeProvider : ContentProvider() {
         if (!vault.isConfigured) return statusOnly(STATUS_NOT_CONFIGURED)
 
         val dek = vault.dek() ?: return statusOnly(STATUS_LOCKED)
-        val salt = vault.session.kdfSalt ?: return statusOnly(STATUS_LOCKED)
         val accessToken = vault.session.accessToken ?: return statusOnly(STATUS_LOCKED)
 
-        val collectionKey = VaultCrypto.deriveCollectionKey(dek, salt, collection)
+        val collectionKey = VaultCrypto.deriveCollectionKeyV2(dek, collection)
         return try {
             MatrixCursor(COLUMNS).apply {
                 newRow()

@@ -403,21 +403,35 @@ async function renderCalls() {
   list.innerHTML = '';
   list.appendChild(el('div', 'empty', '正在解密…'));
   try {
-    const calls = await V.loadCalls();
+    const { records: calls, encrypted, failed } = await V.loadCalls();
     list.innerHTML = '';
+    if (failed > 0) {
+      const message = failed === encrypted
+        ? `云端有 ${encrypted} 条通话记录，但当前密钥无法解密。记录没有丢失，也不会被删除。请更新通讯录和电话 App，在通讯录中解锁后回到电话 App 点“通话记录”立即修复同步。`
+        : `已显示 ${calls.length} 条；另有 ${failed} 条旧通话记录需要在更新后的电话 App 中修复同步。`;
+      list.appendChild(el('div', 'err', message));
+    }
     if (calls.length === 0) {
-      list.appendChild(el('div', 'empty', '还没有通话记录。需要在电话 App 里开启加密同步。'));
+      if (encrypted === 0) {
+        list.appendChild(el('div', 'empty', '云端还没有通话记录。请先在通讯录 App 配置同步账号并解锁，再打开电话 App 同步。'));
+      }
       return;
     }
-    const TYPE = { 1: '呼入', 2: '呼出', 3: '未接', 5: '拒接', 6: '拦截' };
+    const TYPE = {
+      incoming: '呼入', outgoing: '呼出', missed: '未接', rejected: '拒接', blocked: '拦截',
+      1: '呼入', 2: '呼出', 3: '未接', 5: '拒接', 6: '拦截',
+    };
     for (const c of calls) {
+      const kind = c.kind ?? c.type;
+      const startedAt = c.startedAt ?? c.ts;
+      const duration = c.duration ?? c.dur ?? 0;
       const row = el('div', 'item');
       row.style.cursor = 'default';
-      row.appendChild(el('div', 'avatar', TYPE[c.type]?.[0] ?? '?'));
+      row.appendChild(el('div', 'avatar', TYPE[kind]?.[0] ?? '?'));
       const info = el('div', 'grow');
       info.appendChild(el('div', 'name', c.name || c.number || '未知号码'));
       info.appendChild(el('div', 'meta',
-        `${TYPE[c.type] ?? '通话'} · ${new Date(c.ts).toLocaleString('zh-CN')} · ${fmtDur(c.dur)}`));
+        `${TYPE[kind] ?? '通话'} · ${fmtCallTime(startedAt)} · ${fmtDur(duration)}`));
       row.appendChild(info);
       list.appendChild(row);
     }
@@ -426,6 +440,12 @@ async function renderCalls() {
     list.appendChild(el('div', 'empty', '加载失败：' + friendly(e)));
   }
 }
+
+const fmtCallTime = (timestamp) => {
+  const value = Number(timestamp);
+  if (!Number.isFinite(value) || value <= 0) return '时间未记录';
+  return new Date(value).toLocaleString('zh-CN');
+};
 
 const fmtDur = (s) => (!s ? '未接通' : s < 60 ? `${s} 秒` : `${Math.floor(s / 60)} 分 ${s % 60} 秒`);
 

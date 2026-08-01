@@ -73,6 +73,10 @@ class CallRecordDeduplicatorTest {
         override fun countPending(): Int =
             records.count { it.dirty || it.deletedLocally }
 
+        override fun markAllForReencrypt() {
+            records.indices.forEach { i -> records[i] = records[i].copy(dirty = true) }
+        }
+
         override fun newestStart(): Long? = records.maxOfOrNull { it.startedAt }
 
         override fun upsert(record: CallRecordEntity) {

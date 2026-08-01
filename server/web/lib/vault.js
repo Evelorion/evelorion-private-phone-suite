@@ -255,29 +255,46 @@ async function verifyManifest(change) {
   vault.manifestRev = Math.max(change.rev, vault.manifestRev);
 }
 
-/** 通话记录用的是另一把密钥，只读展示。 */
+/**
+ * 通话记录用的是另一把密钥，只读展示。
+ *
+ * v2 不再依赖可能变化的口令 KDF salt；迁移期间逐条尝试 v2 和旧 v1，
+ * 这样新旧密文可以同时存在。解不开的数量必须返回给界面，不能再把
+ * “云端有密文但当前密钥不匹配”误报成“没有通话记录”。
+ */
 export async function loadCalls() {
-  const callKey = await C.deriveCollectionKey(vault.dek, vault.salt, 'calls');
+  const callKeyV2 = await C.deriveCollectionKeyV2(vault.dek, 'calls');
+  const callKeyV1 = await C.deriveCollectionKey(vault.dek, vault.salt, 'calls');
   const out = [];
+  let encrypted = 0;
+  let failed = 0;
   try {
     let since = 0;
     for (;;) {
       const res = await userApi(`/v1/sync/changes?collection=calls&since=${since}&limit=500`);
       for (const ch of res.changes) {
         if (ch.deleted) continue;
+        encrypted++;
+        let record = null;
         try {
-          out.push(await C.decryptRecord(callKey, ch.uuid, ch.rev, ch.nonce, ch.ciphertext));
-        } catch { /* 单条解不开就跳过 */ }
+          record = await C.decryptRecord(callKeyV2, ch.uuid, ch.rev, ch.nonce, ch.ciphertext);
+        } catch {
+          try {
+            record = await C.decryptRecord(callKeyV1, ch.uuid, ch.rev, ch.nonce, ch.ciphertext);
+          } catch { /* 下面统一计数并明确提示用户 */ }
+        }
+        if (record) out.push(record);
+        else failed++;
       }
       since = res.nextSince;
       if (!res.hasMore) break;
     }
   } finally {
-    C.wipe(callKey);
+    C.wipe(callKeyV2, callKeyV1);
   }
-  out.sort((a, b) => (b.ts ?? 0) - (a.ts ?? 0));
+  out.sort((a, b) => (b.startedAt ?? b.ts ?? 0) - (a.startedAt ?? a.ts ?? 0));
   vault.calls = out;
-  return out;
+  return { records: out, encrypted, failed };
 }
 
 // ---------------------------------------------------------------- 写入

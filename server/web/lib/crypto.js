@@ -222,8 +222,20 @@ export const deriveRecoveryKek = (rk, salt) => hkdf(rk, salt, INFO_RECOVERY);
 export const deriveRecoveryAuthSecret = async (recoveryKey, salt) =>
   toHex(await hkdf(recoveryKey, salt, INFO_AUTH_RECOVERY));
 export const deriveIndexKey = (dek, salt) => hkdf(dek, salt, INFO_INDEX);
+/**
+ * 旧版通话子密钥。它把口令 KDF 的 salt 也混进来了；修改口令或迁移账号参数后，
+ * 电话 App 和网页可能拿到不同的 salt，结果就是联系人能解开、通话记录全打不开。
+ * 这里只为读取迁移前的密文保留，新的通话记录一律使用 v2。
+ */
 export const deriveCollectionKey = (dek, salt, collection) =>
   hkdf(dek, salt, `fc.collection.${collection}.v1`);
+
+/**
+ * 稳定的 collection 子密钥。只依赖不会随口令变化的 DEK；空 salt 是 HKDF 的
+ * 标准用法，collection 名和版本号继续负责域分离。
+ */
+export const deriveCollectionKeyV2 = (dek, collection) =>
+  hkdf(dek, new Uint8Array(0), `fc.collection.${collection}.v2`);
 
 export async function deriveAuthSecret(mk, salt) {
   return toHex(await hkdf(mk, salt, INFO_AUTH));

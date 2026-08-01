@@ -36,6 +36,7 @@ fun SettingsScreen(
     onRequestDialerRole: () -> Unit = {},
     onRequestCallScreeningRole: () -> Unit = {},
     onOpenContacts: () -> Unit = {},
+    onSyncCalls: () -> Unit = {},
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val scheme = MaterialTheme.colorScheme
@@ -83,8 +84,10 @@ fun SettingsScreen(
             )
             LinkRow(
                 Icons.Filled.Quickreply, "通话记录",
-                if (status.pendingCount > 0) "${status.callCount} 条 · 还有 ${status.pendingCount} 条待上传"
+                if (status.callSyncError.isNotBlank()) "${status.callCount} 条 · ${status.callSyncError}"
+                else if (status.pendingCount > 0) "${status.callCount} 条 · 还有 ${status.pendingCount} 条待上传，点此立即同步"
                 else "${status.callCount} 条 · 已全部同步",
+                onClick = onSyncCalls,
             )
         }
 
@@ -190,6 +193,7 @@ data class SettingsStatus(
     val vaultMessage: String = "尚未连接通讯录",
     val callCount: Int = 0,
     val pendingCount: Int = 0,
+    val callSyncError: String = "",
     val familyCount: Int = 0,
     val blockedCount: Int = 0,
 )

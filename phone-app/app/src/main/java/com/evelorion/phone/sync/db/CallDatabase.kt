@@ -56,6 +56,10 @@ data class CallSyncStateEntity(
     val lastSeq: Long = 0,
     val lastSyncAt: Long = 0,
     val lastError: String = "",
+    /** 防止切换账号后把旧账号的本地通话记录上传到新账号。 */
+    val accountId: String = "",
+    /** 只存 SHA-256 指纹，不存 collection 子密钥本身。用于识别密钥版本迁移。 */
+    val keyFingerprint: String = "",
     /**
      * 已经从系统通话记录导入到哪个时间点。
      * 只导入比它更新的，避免每次同步都把同一批记录重新生成一遍 uuid、
@@ -78,6 +82,10 @@ interface CallDao {
     @Query("SELECT COUNT(*) FROM call_records WHERE dirty = 1 OR deletedLocally = 1")
     fun countPending(): Int
 
+    /** 密钥升级时保留本地明文和服务端 rev，只把所有记录重新排队加密上传。 */
+    @Query("UPDATE call_records SET dirty = 1")
+    fun markAllForReencrypt()
+
     @Query("SELECT MAX(startedAt) FROM call_records")
     fun newestStart(): Long?
 
@@ -97,7 +105,7 @@ interface CallDao {
     fun putState(state: CallSyncStateEntity)
 }
 
-@Database(entities = [CallRecordEntity::class, CallSyncStateEntity::class], version = 2, exportSchema = true)
+@Database(entities = [CallRecordEntity::class, CallSyncStateEntity::class], version = 3, exportSchema = true)
 abstract class CallDatabase : RoomDatabase() {
 
     abstract fun callDao(): CallDao
@@ -108,6 +116,17 @@ abstract class CallDatabase : RoomDatabase() {
         private val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE call_records ADD COLUMN endedAt INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE call_sync_state ADD COLUMN accountId TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE call_sync_state ADD COLUMN keyFingerprint TEXT NOT NULL DEFAULT ''")
+                // 升级后从头核对云端记录。能用当前密钥解开的不会重传；解不开但
+                // 本机仍有明文的，会在同步引擎里以更高 rev 自动修复。
+                db.execSQL("UPDATE call_sync_state SET lastSeq = 0")
+                db.execSQL("UPDATE call_records SET dirty = 1")
             }
         }
 
@@ -128,7 +147,7 @@ abstract class CallDatabase : RoomDatabase() {
          */
         fun get(context: Context): CallDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(context.applicationContext, CallDatabase::class.java, NAME)
-                .addMigrations(MIGRATION_1_2)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                 .build().also { instance = it }
         }
     }

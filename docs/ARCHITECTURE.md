@@ -173,7 +173,8 @@ contentproviders/MyContactsContentProvider.kt 165 行  私密联系人出口 + �
 sync/bridge/VaultBridgeProvider.kt   132 行   把 calls 子密钥交给电话 App
 ```
 
-`VaultBridgeProvider` 交出去的**不是 DEK 本身**，是 `HKDF(DEK, "fc.collection.calls.v1")`。
+`VaultBridgeProvider` 交出去的**不是 DEK 本身**，是稳定的 `HKDF(DEK, "fc.collection.calls.v2")`。
+v2 不再混入口令 KDF salt，因此修改主口令不会让电话 App 和网页派生出不同的通话密钥。
 电话 App 有它能加解密通话记录，但推不回 DEK，解不开任何一条联系人。
 访问令牌也只给 15 分钟就过期的那个，刷新令牌不给。
 

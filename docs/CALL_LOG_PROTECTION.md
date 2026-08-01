@@ -120,7 +120,7 @@ ALL                  全部拿走，系统 CallLog 基本为空
 ```
 通讯录持有  DEK
               │
-              │ HKDF(DEK, "fc.collection.calls.v1")
+              │ HKDF(DEK, "fc.collection.calls.v2")
               ▼
          calls 子密钥  ──── 只把这个交给电话 App
 ```

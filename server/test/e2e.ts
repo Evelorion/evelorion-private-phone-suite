@@ -461,10 +461,11 @@ async function main(): Promise<void> {
     // ---------------------------------------------------------------
     console.log('\n[10] 通话记录与联系人的隔离（collection）');
     // 电话 App 用的是从 DEK 派生出来的另一把密钥，通讯录解不开它，反之亦然
-    const callKey = C.deriveCollectionKey(dek, vault.salt, 'calls');
+    const legacyCallKey = C.deriveCollectionKey(dek, vault.salt, 'calls');
+    const callKey = C.deriveCollectionKeyV2(dek, 'calls');
     const callUuid = randomUUID();
     const callRecord = { v: 1, number: '+8613800138000', ts: Date.now(), dur: 42, type: 2 };
-    const encCall = C.encryptRecord(callKey, callUuid, 1, callRecord);
+    const encCall = C.encryptRecord(legacyCallKey, callUuid, 1, callRecord);
 
     const pushCall = await api('/v1/sync/push', {
       method: 'POST', token: relogin.accessToken,
@@ -480,11 +481,30 @@ async function main(): Promise<void> {
     const callChanges = await api('/v1/sync/changes?since=0&collection=calls', { token: relogin.accessToken });
     check('拉通话记录时只有通话记录',
       callChanges.changes.length === 1 && callChanges.changes[0].uuid === callUuid);
-    check('通话记录能用派生密钥解开',
-      (C.decryptRecord(callKey, callUuid, 1, callChanges.changes[0].nonce, callChanges.changes[0].ciphertext) as any)
+    check('迁移前记录能用旧 v1 子密钥解开',
+      (C.decryptRecord(legacyCallKey, callUuid, 1, callChanges.changes[0].nonce, callChanges.changes[0].ciphertext) as any)
+        .number === '+8613800138000');
+    check('旧记录不能被 v2 密钥误解开', (() => {
+      try { C.decryptRecord(callKey, callUuid, 1, callChanges.changes[0].nonce, callChanges.changes[0].ciphertext); return false; }
+      catch { return true; }
+    })());
+
+    // 电话 App 本地仍有明文时：跟上服务端 rev，再用 v2 以 rev+1 覆盖。
+    const repairCall = await api('/v1/sync/push', {
+      method: 'POST', token: relogin.accessToken,
+      body: JSON.stringify({ collection: 'calls', changes: [{
+        uuid: callUuid, baseRev: 1, schemaVer: 1, ...C.encryptRecord(callKey, callUuid, 2, callRecord),
+      }] }),
+    });
+    check('旧通话记录可以原地升级为 v2 密文',
+      repairCall.results[0].status === 'applied' && repairCall.results[0].rev === 2);
+    const repairedChanges = await api('/v1/sync/changes?since=0&collection=calls', { token: relogin.accessToken });
+    const repairedCall = repairedChanges.changes.find((c: any) => c.uuid === callUuid);
+    check('升级后的通话记录能用稳定 v2 子密钥解开',
+      (C.decryptRecord(callKey, callUuid, 2, repairedCall.nonce, repairedCall.ciphertext) as any)
         .number === '+8613800138000');
     check('通讯录的 DEK 解不开通话记录', (() => {
-      try { C.decryptRecord(dek, callUuid, 1, callChanges.changes[0].nonce, callChanges.changes[0].ciphertext); return false; }
+      try { C.decryptRecord(dek, callUuid, 2, repairedCall.nonce, repairedCall.ciphertext); return false; }
       catch { return true; }
     })());
 

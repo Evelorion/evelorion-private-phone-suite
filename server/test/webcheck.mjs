@@ -36,6 +36,7 @@ ck('恢复码 KEK', C.toHex(await C.deriveRecoveryKek(rk, salt)) === V.recoveryK
 ck('记录密钥', C.toHex(await C.deriveRecordKey(dek, uuid)) === V.recordKeyHex);
 ck('盲索引密钥', C.toHex(await C.deriveIndexKey(dek, salt)) === V.indexKeyHex);
 ck('collection 子密钥', C.toHex(await C.deriveCollectionKey(dek, salt, 'calls')) === V.collectionKey_calls);
+ck('稳定 collection v2 子密钥', C.toHex(await C.deriveCollectionKeyV2(dek, 'calls')) === V.collectionKeyV2_calls);
 ck('记录 AAD', C.toHex(C.recordAad(uuid, 7, 1)) === V.recordAadHex);
 ck('blob id', (await C.blobId(dek, new TextEncoder().encode('AAAA'))) === V.blobIdOfAAAA);
 ck('itemId(phones)', (await C.itemId('phones', '+8613800138000')) === V.itemId_phones_e164);

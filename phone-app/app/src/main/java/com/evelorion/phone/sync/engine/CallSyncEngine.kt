@@ -53,6 +53,14 @@ class CallSyncEngine(private val context: Context) {
     private val database by lazy { CallDatabase.get(context) }
     private val dao by lazy { database.callDao() }
 
+    private enum class RemoteResult { APPLIED, SKIPPED, REPAIR_QUEUED, UNRECOVERABLE }
+
+    private data class PullReport(
+        val applied: Int = 0,
+        val repairsQueued: Int = 0,
+        val unrecoverable: Int = 0,
+    )
+
     fun sync(): Report {
         val session = VaultBridge.session(context)
         if (!session.usable) return fail(session.message)
@@ -66,20 +74,27 @@ class CallSyncEngine(private val context: Context) {
         }
 
         return try {
+            val bindingError = bindSyncIdentity(session.accountId, key)
+            if (bindingError != null) return fail(bindingError)
+
             CallRecordDeduplicator.clean(dao)
             val imported = importFromSystem()
             val state = dao.state() ?: CallSyncStateEntity()
-            val pulled = pull(api, key, state.lastSeq)
+            val pull = pull(api, key, state.lastSeq)
             CallRecordDeduplicator.clean(dao)
             val pushed = push(api, key)
+
+            val finalError = if (pull.unrecoverable > 0) {
+                "云端有 ${pull.unrecoverable} 条记录使用旧密钥，本机没有对应明文，已保留云端密文"
+            } else ""
 
             dao.putState(
                 (dao.state() ?: CallSyncStateEntity()).copy(
                     lastSyncAt = System.currentTimeMillis(),
-                    lastError = "",
+                    lastError = finalError,
                 )
             )
-            Report(imported = imported, pulled = pulled, pushed = pushed)
+            Report(imported = imported, pulled = pull.applied, pushed = pushed, error = finalError)
         } catch (e: CallsApi.AuthExpired) {
             fail(e.message ?: "同步凭据已失效")
         } catch (e: CallsApi.HttpFailure) {
@@ -99,6 +114,37 @@ class CallSyncEngine(private val context: Context) {
             dao.putState((dao.state() ?: CallSyncStateEntity()).copy(lastError = message))
         }
         return Report(error = message)
+    }
+
+    /**
+     * 把本地同步库绑定到账号和 collection 密钥指纹。
+     *
+     * 同一账号密钥升级：保留全部本地明文，回到 seq=0 核对并重新加密。
+     * 切换账号：拒绝自动上传，避免把旧账号的私人通话记录泄露到新账号。
+     */
+    private fun bindSyncIdentity(accountId: String, key: ByteArray): String? {
+        if (accountId.isBlank()) return "同步账号缺少账户标识，请先在通讯录重新登录"
+        val fingerprint = Crypto.toHex(Crypto.sha256(key))
+        val state = dao.state() ?: CallSyncStateEntity()
+
+        if (state.accountId.isNotBlank() && state.accountId != accountId) {
+            return "检测到通讯录切换了账号。为防止把旧账号通话记录上传到新账号，已暂停同步"
+        }
+
+        if (state.accountId.isBlank() || state.keyFingerprint != fingerprint) {
+            database.runInTransaction {
+                dao.markAllForReencrypt()
+                dao.putState(
+                    (dao.state() ?: CallSyncStateEntity()).copy(
+                        accountId = accountId,
+                        keyFingerprint = fingerprint,
+                        lastSeq = 0,
+                        lastError = "正在迁移通话记录加密密钥",
+                    )
+                )
+            }
+        }
+        return null
     }
 
     // ------------------------------------------------------------ 1. 收编系统记录
@@ -185,9 +231,11 @@ class CallSyncEngine(private val context: Context) {
 
     // ------------------------------------------------------------ 2. 拉取
 
-    private fun pull(api: CallsApi, key: ByteArray, startSeq: Long): Int {
+    private fun pull(api: CallsApi, key: ByteArray, startSeq: Long): PullReport {
         var since = startSeq
         var applied = 0
+        var repairsQueued = 0
+        var unrecoverable = 0
 
         while (true) {
             val response = api.getChanges(since)
@@ -196,27 +244,32 @@ class CallSyncEngine(private val context: Context) {
 
             for (i in 0 until changes.length()) {
                 val change = changes.optJSONObject(i) ?: continue
-                if (applyRemote(key, change)) applied++
+                when (applyRemote(key, change)) {
+                    RemoteResult.APPLIED -> applied++
+                    RemoteResult.REPAIR_QUEUED -> repairsQueued++
+                    RemoteResult.UNRECOVERABLE -> unrecoverable++
+                    RemoteResult.SKIPPED -> Unit
+                }
             }
 
             since = response.optLong("nextSince", since)
             dao.putState((dao.state() ?: CallSyncStateEntity()).copy(lastSeq = since))
             if (!response.optBoolean("hasMore", false)) break
         }
-        return applied
+        return PullReport(applied, repairsQueued, unrecoverable)
     }
 
-    private fun applyRemote(key: ByteArray, change: JSONObject): Boolean {
+    private fun applyRemote(key: ByteArray, change: JSONObject): RemoteResult {
         val uuid = change.getString("uuid")
         val rev = change.getInt("rev")
         val known = dao.byUuid(uuid)
 
         // 自己刚推上去又被拉回来的，跳过
-        if (known != null && known.rev == rev && !known.dirty) return false
+        if (known != null && known.rev == rev && !known.dirty) return RemoteResult.SKIPPED
 
         if (change.optBoolean("deleted", false)) {
             dao.deleteByUuid(uuid)
-            return true
+            return RemoteResult.APPLIED
         }
 
         val payload = try {
@@ -226,11 +279,17 @@ class CallSyncEngine(private val context: Context) {
             // 解不开只可能是密钥不对或数据被改过。跳过这条，但要记下来 ——
             // 静默丢弃会让用户永远不知道有记录拉不下来。
             Log.e(TAG, "通话记录 $uuid 解密失败", e)
+            if (known != null) {
+                // 本机仍有这条记录的明文：跟上服务端 rev 后保持 dirty，push 会用
+                // 当前 v2 密钥写成 rev+1。服务端旧密文不删除，覆盖成功才结束。
+                dao.upsert(known.copy(rev = rev, dirty = true))
+                return RemoteResult.REPAIR_QUEUED
+            }
             dao.putState(
                 (dao.state() ?: CallSyncStateEntity())
-                    .copy(lastError = "有 1 条通话记录解密失败，可能来自另一个账号")
+                    .copy(lastError = "有 1 条旧通话记录无法解密，本机也没有对应明文")
             )
-            return false
+            return RemoteResult.UNRECOVERABLE
         }
 
         dao.upsert(
@@ -246,7 +305,7 @@ class CallSyncEngine(private val context: Context) {
                 dirty = false,
             )
         )
-        return true
+        return RemoteResult.APPLIED
     }
 
     // ------------------------------------------------------------ 3. 推送

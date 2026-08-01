@@ -11,7 +11,7 @@ import android.util.Log
  *
  *   baseUrl        服务器地址（用户在通讯录里填的，这边不再问一遍）
  *   accessToken    **短期**访问令牌（15 分钟），刷新令牌拿不到
- *   collectionKey  HKDF(DEK, "fc.collection.calls.v1") 派生的子密钥
+ *   collectionKey  HKDF(DEK, "fc.collection.calls.v2") 派生的稳定子密钥
  *
  * 关键在最后一条：给的**不是 DEK**。用它能加解密通话记录，但推不回 DEK，
  * 所以电话 App 解不开任何一条联系人。万一这个 App 被攻破，
