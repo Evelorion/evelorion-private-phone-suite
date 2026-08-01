@@ -13,6 +13,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -32,6 +33,7 @@ import androidx.compose.material.icons.filled.AddIcCall
 import androidx.compose.material.icons.filled.CallEnd
 import androidx.compose.material.icons.filled.Dialpad
 import androidx.compose.material.icons.filled.FiberManualRecord
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MicOff
 import androidx.compose.material.icons.filled.Pause
@@ -188,6 +190,7 @@ fun InCallScreen() {
                     onDigit = { digit ->
                         if (!CallManager.sendDtmf(digit)) unavailable("当前没有可发送按键音的通话")
                     },
+                    onDismiss = { padVisible = false },
                 )
             }
 
@@ -278,36 +281,70 @@ fun InCallScreen() {
 }
 
 @Composable
-private fun DialTonePad(typed: String, onDigit: (Char) -> Unit) {
+private fun DialTonePad(typed: String, onDigit: (Char) -> Unit, onDismiss: () -> Unit) {
+    val rows = listOf(
+        listOf(DialKey('1'), DialKey('2', "ABC"), DialKey('3', "DEF")),
+        listOf(DialKey('4', "GHI"), DialKey('5', "JKL"), DialKey('6', "MNO")),
+        listOf(DialKey('7', "PQRS"), DialKey('8', "TUV"), DialKey('9', "WXYZ")),
+        listOf(DialKey('*'), DialKey('0', "+"), DialKey('#')),
+    )
     Column(
-        Modifier.padding(top = 12.dp).fillMaxWidth().clip(RoundedCornerShape(30.dp))
-            .background(Color(0xB51A3147)).padding(horizontal = 16.dp, vertical = 12.dp),
+        Modifier.padding(top = 10.dp).width(280.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(
-            typed.takeLast(18).ifBlank { "输入分机号或按键" },
-            color = if (typed.isBlank()) Color(0xFFBFD0DF) else Color.White,
-            fontSize = 16.sp,
-            letterSpacing = 1.8.sp,
-        )
-        listOf("123", "456", "789", "*0#").forEach { row ->
-            Row(
-                Modifier.fillMaxWidth().padding(top = 7.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+        Row(
+            Modifier.fillMaxWidth().padding(bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Spacer(Modifier.width(40.dp))
+            Text(
+                typed.takeLast(18).ifBlank { "拨号键盘" },
+                modifier = Modifier.weight(1f),
+                color = if (typed.isBlank()) Color(0xFFD4E0EA) else Color.White,
+                fontSize = 17.sp,
+                letterSpacing = 1.4.sp,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            )
+            Box(
+                Modifier.size(40.dp).clip(CircleShape).clickable(onClick = onDismiss),
+                contentAlignment = Alignment.Center,
             ) {
-                row.forEach { digit ->
+                Icon(Icons.Filled.KeyboardArrowDown, "收起键盘", tint = Color.White)
+            }
+        }
+        rows.forEach { row ->
+            Row(
+                Modifier.fillMaxWidth().padding(bottom = 9.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                row.forEach { key ->
                     Box(
-                        Modifier.weight(1f).height(43.dp).clip(RoundedCornerShape(18.dp))
-                            .background(Color(0x4DFFFFFF)).clickable { onDigit(digit) },
+                        Modifier.size(62.dp).clip(CircleShape)
+                            .background(Color(0xA6385064))
+                            .border(1.dp, Color(0x3DFFFFFF), CircleShape)
+                            .clickable { onDigit(key.digit) },
                         contentAlignment = Alignment.Center,
                     ) {
-                        Text(digit.toString(), color = Color.White, fontSize = 20.sp)
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(key.digit.toString(), color = Color.White, fontSize = 23.sp)
+                            if (key.letters.isNotBlank()) {
+                                Text(
+                                    key.letters,
+                                    color = Color(0xFFD0DDE7),
+                                    fontSize = 8.sp,
+                                    letterSpacing = 1.2.sp,
+                                    lineHeight = 9.sp,
+                                )
+                            }
+                        }
                     }
                 }
             }
         }
     }
 }
+
+private data class DialKey(val digit: Char, val letters: String = "")
 
 @Composable
 private fun MonetControl(modifier: Modifier, control: CallControl) {
