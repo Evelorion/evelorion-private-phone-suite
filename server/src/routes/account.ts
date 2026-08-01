@@ -6,7 +6,13 @@ import {
   issueAccessToken, newRefreshToken, refreshTokenHash, constantTimeEqual,
 } from '../lib/crypto.ts';
 import { HttpError, requireAuth, requireString, requireInt, b64, clientIp } from '../lib/http.ts';
-import { mfaRequired, createLoginChallenge, consumeLoginChallenge, verifyMfa, mfaSatisfied } from './mfa.ts';
+import {
+  mfaRequired,
+  createLoginChallenge,
+  consumeLoginChallenge,
+  verifyMfa,
+  mfaSatisfied,
+} from './mfa.ts';
 import { tooManyAttempts, recordAttempt, clearAttempts } from '../lib/ratelimit.ts';
 import { consumeInvite } from '../lib/admin.ts';
 
@@ -38,6 +44,7 @@ function vaultPayload(acc: AccountRow) {
     },
     dekWrapPassword: acc.dek_wrap_password.toString('base64'),
     dekWrapRecovery: acc.dek_wrap_recovery.toString('base64'),
+    privateKeyLoginEnabled: acc.recovery_auth_hash !== null,
   };
 }
 
@@ -199,7 +206,13 @@ export function registerAccountRoutes(app: FastifyInstance): void {
     db.prepare('INSERT INTO devices (id, account_id, name, created_at, last_seen_at) VALUES (?, ?, ?, ?, ?)')
       .run(deviceId, acc.id, stored.deviceName, now, now);
 
-    return { ...vaultPayload(acc), deviceId, ...issueTokens(acc.id, deviceId), serverSeq: acc.seq };
+    return {
+      ...vaultPayload(acc),
+      deviceId,
+      ...issueTokens(acc.id, deviceId),
+      serverSeq: acc.seq,
+      mustResetPassphrase: stored.loginKind === 'recovery',
+    };
   });
 
   /**
@@ -252,8 +265,12 @@ export function registerAccountRoutes(app: FastifyInstance): void {
     clearAttempts(userKey);
 
     // 两步验证在这条路上照样要过 —— 恢复码只替代口令，不替代第二因素
+    const directPrivateKeyLogin = body.directLogin === true;
     if (mfaRequired(acc.id)) {
-      return { mfaRequired: true, ...createLoginChallenge(acc.id, deviceName) };
+      return {
+        mfaRequired: true,
+        ...createLoginChallenge(acc.id, deviceName, directPrivateKeyLogin ? 'private_key' : 'recovery'),
+      };
     }
 
     const deviceId = uuid();
@@ -266,7 +283,7 @@ export function registerAccountRoutes(app: FastifyInstance): void {
       deviceId,
       ...issueTokens(acc.id, deviceId),
       serverSeq: acc.seq,
-      mustResetPassphrase: true,
+      mustResetPassphrase: !directPrivateKeyLogin,
     };
   });
 
@@ -310,6 +327,23 @@ export function registerAccountRoutes(app: FastifyInstance): void {
     const auth = requireAuth(req);
     const acc = db.prepare('SELECT * FROM accounts WHERE id = ?').get(auth.accountId) as AccountRow;
     return { ...vaultPayload(acc), serverSeq: acc.seq };
+  });
+
+  app.post('/v1/vault/private-key-login/enable', async (req) => {
+    const auth = requireAuth(req);
+    const body = req.body as Record<string, unknown>;
+    const currentAuthSecret = requireString(body.currentAuthSecret, 'currentAuthSecret', 128);
+    const privateKeyAuthSecret = requireString(body.privateKeyAuthSecret, 'privateKeyAuthSecret', 128);
+    if (!/^[0-9a-f]{64}$/.test(privateKeyAuthSecret)) {
+      throw new HttpError(400, 'bad_request', 'privateKeyAuthSecret 格式错误');
+    }
+    const account = db.prepare('SELECT * FROM accounts WHERE id = ?').get(auth.accountId) as AccountRow;
+    if (!(await verifyAuthSecret(currentAuthSecret, account.auth_hash))) {
+      throw new HttpError(401, 'invalid_credentials', '当前主口令不正确');
+    }
+    db.prepare('UPDATE accounts SET recovery_auth_hash = ? WHERE id = ?')
+      .run(await hashAuthSecret(privateKeyAuthSecret), auth.accountId);
+    return { ok: true, privateKeyLoginEnabled: true };
   });
 
   /**

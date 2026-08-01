@@ -149,12 +149,15 @@ function newChallenge(
   accountId: string,
   challenge: string,
   purpose: 'register' | 'login',
-  deviceName = ''
+  deviceName = '',
+  loginKind = 'password',
 ): string {
   const token = randomUUID();
   db.prepare(
-    'INSERT INTO mfa_challenges (token, account_id, challenge, purpose, device_name, expires_at) VALUES (?, ?, ?, ?, ?, ?)'
-  ).run(token, accountId, challenge, purpose, deviceName, Date.now() + CHALLENGE_TTL_MS);
+    `INSERT INTO mfa_challenges
+      (token, account_id, challenge, purpose, device_name, login_kind, expires_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`
+  ).run(token, accountId, challenge, purpose, deviceName, loginKind, Date.now() + CHALLENGE_TTL_MS);
   return token;
 }
 
@@ -168,16 +171,22 @@ export function consumeLoginChallenge(token: string): {
   accountId: string;
   challenge: string;
   deviceName: string;
+  loginKind: string;
 } {
   const row = takeChallenge(token, 'login');
-  return { accountId: row.account_id, challenge: row.challenge, deviceName: row.device_name };
+  return {
+    accountId: row.account_id,
+    challenge: row.challenge,
+    deviceName: row.device_name,
+    loginKind: row.login_kind,
+  };
 }
 
 function takeChallenge(token: string, purpose: 'register' | 'login') {
   const row = db
     .prepare('SELECT * FROM mfa_challenges WHERE token = ? AND purpose = ?')
     .get(token, purpose) as
-    | { token: string; account_id: string; challenge: string; device_name: string; expires_at: number }
+    | { token: string; account_id: string; challenge: string; device_name: string; login_kind: string; expires_at: number }
     | undefined;
   if (!row) throw new HttpError(400, 'bad_challenge', '验证会话不存在或已被使用');
   // 无论成功失败都删掉 —— 挑战值一次性，留着能被重放
@@ -280,7 +289,7 @@ export function mfaMethods(accountId: string): string[] {
   return out;
 }
 
-export function createLoginChallenge(accountId: string, deviceName: string): {
+export function createLoginChallenge(accountId: string, deviceName: string, loginKind = 'password'): {
   mfaToken: string;
   methods: string[];
   requireAll: boolean;
@@ -288,7 +297,7 @@ export function createLoginChallenge(accountId: string, deviceName: string): {
 } {
   const s = getMfaSettings(accountId);
   return {
-    mfaToken: newChallenge(accountId, '', 'login', deviceName),
+    mfaToken: newChallenge(accountId, '', 'login', deviceName, loginKind),
     methods: mfaMethods(accountId),
     requireAll: s.require_all === 1,
   };

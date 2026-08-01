@@ -89,6 +89,7 @@ CREATE TABLE IF NOT EXISTS mfa_challenges (
   purpose    TEXT NOT NULL,
   -- 登录用的挑战附带设备名，验证通过后才真正建设备记录
   device_name TEXT NOT NULL DEFAULT '',
+  login_kind TEXT NOT NULL DEFAULT 'password',
   expires_at INTEGER NOT NULL
 );
 
@@ -193,6 +194,49 @@ CREATE TABLE IF NOT EXISTS admin_sessions (
 );
 CREATE INDEX IF NOT EXISTS idx_admin_sessions_admin ON admin_sessions(admin_id);
 
+CREATE TABLE IF NOT EXISTS admin_mfa_settings (
+  admin_id       TEXT PRIMARY KEY REFERENCES admins(id) ON DELETE CASCADE,
+  totp_enabled   INTEGER NOT NULL DEFAULT 0,
+  passkey_enabled INTEGER NOT NULL DEFAULT 0,
+  updated_at     INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS admin_mfa_totp (
+  admin_id    TEXT PRIMARY KEY REFERENCES admins(id) ON DELETE CASCADE,
+  secret      TEXT NOT NULL,
+  confirmed_at INTEGER,
+  created_at  INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS admin_mfa_backup_codes (
+  admin_id  TEXT NOT NULL REFERENCES admins(id) ON DELETE CASCADE,
+  code_hash TEXT NOT NULL,
+  PRIMARY KEY (admin_id, code_hash)
+);
+
+CREATE TABLE IF NOT EXISTS admin_mfa_passkeys (
+  id            TEXT PRIMARY KEY,
+  admin_id      TEXT NOT NULL REFERENCES admins(id) ON DELETE CASCADE,
+  credential_id TEXT NOT NULL UNIQUE,
+  public_key    BLOB NOT NULL,
+  sign_count    INTEGER NOT NULL DEFAULT 0,
+  transports    TEXT NOT NULL DEFAULT '',
+  name          TEXT NOT NULL,
+  created_at    INTEGER NOT NULL,
+  last_used_at  INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_admin_passkeys_admin ON admin_mfa_passkeys(admin_id);
+
+CREATE TABLE IF NOT EXISTS admin_mfa_challenges (
+  token       TEXT PRIMARY KEY,
+  admin_id    TEXT NOT NULL REFERENCES admins(id) ON DELETE CASCADE,
+  challenge   TEXT NOT NULL,
+  purpose     TEXT NOT NULL,
+  expires_at  INTEGER NOT NULL,
+  ip          TEXT NOT NULL DEFAULT '',
+  user_agent  TEXT NOT NULL DEFAULT ''
+);
+
 -- 邀请码。取代写死在 .env 里的那个单一 REGISTRATION_TOKEN。
 -- 只存哈希，管理员生成后也只显示一次 —— 拖库拿不到能用的邀请码。
 CREATE TABLE IF NOT EXISTS invites (
@@ -243,6 +287,14 @@ function migrateAddRecoveryAuth(): void {
   }
 }
 migrateAddRecoveryAuth();
+
+function migrateAddMfaLoginKind(): void {
+  const cols = db.prepare('PRAGMA table_info(mfa_challenges)').all() as { name: string }[];
+  if (!cols.some((c) => c.name === 'login_kind')) {
+    db.exec("ALTER TABLE mfa_challenges ADD COLUMN login_kind TEXT NOT NULL DEFAULT 'password'");
+  }
+}
+migrateAddMfaLoginKind();
 
 /** 允许的 collection。不做白名单的话客户端可以拿它当任意键值存储用。 */
 export const COLLECTIONS = ['contacts', 'calls'] as const;
@@ -318,6 +370,7 @@ export function sweep(): void {
   db.prepare('DELETE FROM auth_attempts WHERE at < ?').run(now - 3600_000);
   db.prepare('DELETE FROM admin_sessions WHERE expires_at < ?').run(now);
   db.prepare('DELETE FROM mfa_challenges WHERE expires_at < ?').run(now);
+  db.prepare('DELETE FROM admin_mfa_challenges WHERE expires_at < ?').run(now);
   // 用完或过期的邀请码留 30 天供管理员回看，之后清掉
   db.prepare(
     `DELETE FROM invites WHERE created_at < ?

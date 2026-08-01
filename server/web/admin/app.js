@@ -6,6 +6,7 @@
  */
 
 import { adminApi, ApiError } from '../lib/api.js';
+import { passkeySupported, reviveOptions, serializeCredential } from '../lib/mfa.js';
 
 const $ = (id) => document.getElementById(id);
 const el = (tag, cls, text) => {
@@ -91,13 +92,23 @@ $('bsBtn').onclick = async () => {
   }
 };
 
+let pendingAdminMfa = null;
+
 $('lgBtn').onclick = async () => {
   busy($('lgBtn'), true, '登录中…');
   try {
-    await adminApi('/v1/admin/login', {
+    const result = await adminApi('/v1/admin/login', {
       method: 'POST',
       body: { username: $('lgUser').value.trim(), password: $('lgPass').value },
     });
+    if (result.mfaRequired) {
+      pendingAdminMfa = result;
+      $('lgMfa').classList.remove('hidden');
+      $('lgPasskeyWrap').classList.toggle('hidden', !result.methods.includes('passkey'));
+      $('lgCodeWrap').classList.toggle('hidden', !result.methods.includes('totp') && !result.methods.includes('backup'));
+      $('lgPass').value = '';
+      return;
+    }
     $('lgPass').value = '';
     $('login').classList.add('hidden');
     await enterApp();
@@ -105,6 +116,47 @@ $('lgBtn').onclick = async () => {
     msg('lgMsg', e.code === 'invalid_credentials' ? '用户名或口令不正确' : e.message);
   } finally {
     busy($('lgBtn'), false);
+  }
+};
+
+async function finishAdminMfa(body) {
+  await adminApi('/v1/admin/login/mfa/complete', {
+    method: 'POST', body: { mfaToken: pendingAdminMfa.mfaToken, ...body },
+  });
+  pendingAdminMfa = null;
+  $('login').classList.add('hidden');
+  await enterApp();
+}
+
+$('lgPasskey').onclick = async () => {
+  if (!pendingAdminMfa || !passkeySupported()) return msg('lgMsg', '当前浏览器不支持通行密钥');
+  const btn = $('lgPasskey');
+  busy(btn, true, '正在验证…');
+  try {
+    const { options } = await adminApi('/v1/admin/login/mfa/options', {
+      method: 'POST', body: { mfaToken: pendingAdminMfa.mfaToken },
+    });
+    const credential = await navigator.credentials.get({ publicKey: reviveOptions(options) });
+    await finishAdminMfa({ passkey: serializeCredential(credential) });
+  } catch (e) {
+    msg('lgMsg', e?.name === 'NotAllowedError' ? '已取消通行密钥验证' : e.message);
+  } finally {
+    busy(btn, false);
+  }
+};
+
+$('lgCodeBtn').onclick = async () => {
+  if (!pendingAdminMfa) return;
+  const code = $('lgCode').value.trim();
+  if (!code) return msg('lgMsg', '请输入验证码或备份码');
+  const btn = $('lgCodeBtn');
+  busy(btn, true, '正在验证…');
+  try {
+    await finishAdminMfa(/^\d{6}$/.test(code.replace(/\s/g, '')) ? { totpCode: code } : { backupCode: code });
+  } catch (e) {
+    msg('lgMsg', e.message);
+  } finally {
+    busy(btn, false);
   }
 };
 
@@ -427,6 +479,7 @@ $('pwBtn').onclick = async () => {
 };
 
 async function renderSecurity() {
+  await renderAdminMfa();
   try {
     const s = await adminApi('/v1/admin/sessions');
     const box = $('sessionTable');
@@ -452,5 +505,103 @@ async function renderSecurity() {
       'login: 开头是用户端，admin: 开头是管理后台。ip 是按来源地址计数，user 是按用户名计数。'));
   } catch (e) {
     $('failTable').textContent = '读取失败：' + e.message;
+  }
+}
+
+function showBackupCodes(codes) {
+  const bg = el('div', 'modal-bg');
+  const box = el('div', 'modal');
+  bg.appendChild(box);
+  box.appendChild(el('h2', null, '请立即保存管理员备份码'));
+  box.appendChild(el('div', 'warn', '每个备份码只能使用一次，关闭后不会再次显示。'));
+  const code = el('div', 'code-block', codes.join('\n'));
+  code.style.whiteSpace = 'pre-wrap';
+  box.appendChild(code);
+  const actions = el('div', 'actions');
+  const copy = el('button', null, '复制');
+  copy.onclick = () => navigator.clipboard.writeText(codes.join('\n')).then(() => toast('已复制'));
+  const close = el('button', 'primary', '我已保存');
+  close.onclick = () => bg.remove();
+  actions.append(copy, close);
+  box.appendChild(actions);
+  $('modalRoot').appendChild(bg);
+}
+
+async function renderAdminMfa() {
+  const box = $('adminMfaBox');
+  box.innerHTML = '';
+  try {
+    const status = await adminApi('/v1/admin/mfa/status');
+    const summary = el('div', 'row wrap-row');
+    summary.appendChild(el('span', `badge ${status.totpEnabled ? 'on' : 'off'}`, `验证器：${status.totpEnabled ? '已开启' : '未开启'}`));
+    summary.appendChild(el('span', `badge ${status.passkeyEnabled ? 'on' : 'off'}`, `通行密钥：${status.passkeyEnabled ? '已开启' : '未开启'}`));
+    summary.appendChild(el('span', 'badge', `备份码：${status.backupCodesLeft}`));
+    box.appendChild(summary);
+
+    const actions = el('div', 'actions wrap-row');
+    const totp = el('button', null, status.totpEnabled ? '关闭验证器' : '设置验证器');
+    totp.onclick = async () => {
+      try {
+        if (status.totpEnabled) {
+          const code = prompt('输入当前验证器的 6 位验证码以关闭：');
+          if (!code) return;
+          await adminApi('/v1/admin/mfa/totp/disable', { method: 'POST', body: { code } });
+          toast('验证器已关闭');
+        } else {
+          const setup = await adminApi('/v1/admin/mfa/totp/setup', { method: 'POST' });
+          const code = prompt(`请在验证器中添加下面的密钥，然后输入生成的 6 位验证码：\n\n${setup.secret}`);
+          if (!code) return;
+          const result = await adminApi('/v1/admin/mfa/totp/confirm', { method: 'POST', body: { code } });
+          showBackupCodes(result.backupCodes);
+          toast('验证器已开启');
+        }
+        await renderAdminMfa();
+      } catch (e) { toast(e.message, true); }
+    };
+
+    const add = el('button', 'primary', '添加通行密钥');
+    add.onclick = async () => {
+      if (!passkeySupported()) return toast('当前浏览器不支持通行密钥', true);
+      try {
+        const start = await adminApi('/v1/admin/mfa/passkey/register/options', { method: 'POST' });
+        const credential = await navigator.credentials.create({ publicKey: reviveOptions(start.options) });
+        const result = await adminApi('/v1/admin/mfa/passkey/register/verify', {
+          method: 'POST',
+          body: { token: start.token, name: '管理员通行密钥', response: serializeCredential(credential) },
+        });
+        if (result.backupCodes) showBackupCodes(result.backupCodes);
+        toast('通行密钥已添加');
+        await renderAdminMfa();
+      } catch (e) {
+        toast(e?.name === 'NotAllowedError' ? '已取消' : e.message, true);
+      }
+    };
+
+    const backup = el('button', null, '重新生成备份码');
+    backup.disabled = !status.totpEnabled && !status.passkeyEnabled;
+    backup.onclick = async () => {
+      if (!confirm('旧的管理员备份码会立即失效，继续吗？')) return;
+      try {
+        const result = await adminApi('/v1/admin/mfa/backup/regenerate', { method: 'POST' });
+        showBackupCodes(result.backupCodes);
+        await renderAdminMfa();
+      } catch (e) { toast(e.message, true); }
+    };
+    actions.append(totp, add, backup);
+    box.appendChild(actions);
+
+    if (status.passkeys.length) {
+      box.appendChild(table(['名称', '添加时间', '上次使用', ''], status.passkeys.map((key) => {
+        const remove = el('button', 'sm danger', '删除');
+        remove.onclick = async () => {
+          if (!confirm(`删除「${key.name}」？`)) return;
+          await adminApi(`/v1/admin/mfa/passkey/${encodeURIComponent(key.id)}`, { method: 'DELETE' });
+          await renderAdminMfa();
+        };
+        return [key.name, fmtTime(key.created_at), fmtTime(key.last_used_at), remove];
+      })));
+    }
+  } catch (e) {
+    box.appendChild(el('div', 'err', '读取二次验证状态失败：' + e.message));
   }
 }

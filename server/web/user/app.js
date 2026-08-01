@@ -52,14 +52,18 @@ function busy(button, on, label) {
 let mode = 'login';
 
 $('tabLogin').onclick = () => setMode('login');
+$('tabPrivateKey').onclick = () => setMode('privateKey');
 $('tabRegister').onclick = () => setMode('register');
 
 function setMode(m) {
   mode = m;
   $('tabLogin').classList.toggle('active', m === 'login');
+  $('tabPrivateKey').classList.toggle('active', m === 'privateKey');
   $('tabRegister').classList.toggle('active', m === 'register');
   $('inviteWrap').classList.toggle('hidden', m !== 'register');
-  $('submitBtn').textContent = m === 'login' ? '登录' : '创建账号';
+  $('passphraseWrap').classList.toggle('hidden', m === 'privateKey');
+  $('privateKeyWrap').classList.toggle('hidden', m !== 'privateKey');
+  $('submitBtn').textContent = m === 'login' ? '登录' : m === 'privateKey' ? '用账户私钥直接登录' : '创建账号';
   $('passphrase').autocomplete = m === 'login' ? 'current-password' : 'new-password';
   $('passHint').textContent = m === 'login'
     ? '主口令不会上传，也无法找回。'
@@ -70,6 +74,7 @@ function setMode(m) {
 $('submitBtn').onclick = async () => {
   const username = $('username').value.trim();
   const passphrase = $('passphrase').value;
+  const privateKey = $('accountPrivateKey').value.trim();
   const btn = $('submitBtn');
   $('authMsg').innerHTML = '';
 
@@ -77,9 +82,10 @@ $('submitBtn').onclick = async () => {
   if (mode === 'register' && passphrase.length < 10) {
     return showAuthError('主口令至少 10 个字符。它是唯一能解开数据的东西，没有找回途径。');
   }
-  if (!passphrase) return showAuthError('请输入主口令');
+  if (mode !== 'privateKey' && !passphrase) return showAuthError('请输入主口令');
+  if (mode === 'privateKey' && !privateKey) return showAuthError('请输入账户私钥');
 
-  busy(btn, true, '正在派生密钥…');
+  busy(btn, true, mode === 'privateKey' ? '正在验证账户私钥…' : '正在派生密钥…');
   try {
     if (mode === 'register') {
       const { recoveryCode } = await V.register(
@@ -88,6 +94,9 @@ $('submitBtn').onclick = async () => {
       $('recoveryCode').textContent = recoveryCode;
       $('auth').classList.add('hidden');
       $('recoveryPanel').classList.remove('hidden');
+    } else if (mode === 'privateKey') {
+      await V.loginWithPrivateKey(username, privateKey, deviceName(), mfaPrompt);
+      await enterApp();
     } else {
       await V.login(username, passphrase, deviceName(), mfaPrompt);
       await enterApp();
@@ -97,6 +106,7 @@ $('submitBtn').onclick = async () => {
   } finally {
     busy(btn, false);
     $('passphrase').value = '';
+    $('accountPrivateKey').value = '';
   }
 };
 
@@ -108,6 +118,7 @@ function showAuthError(msg) {
 function friendly(e) {
   if (e instanceof ApiError) {
     if (e.code === 'invalid_credentials') return '用户名或主口令不正确';
+    if (e.code === 'invalid_recovery_code') return '账户私钥不正确，或这是尚未启用私钥登录的旧账户。请先用主口令登录一次，在设置里启用。';
     if (e.code === 'bad_registration_token') return e.message;
     if (e.code === 'username_taken') return '这个用户名已经被占用了';
     if (e.code === 'too_many_attempts') return '尝试次数过多，请一小时后再试';
@@ -422,6 +433,16 @@ const fmtDur = (s) => (!s ? '未接通' : s < 60 ? `${s} 秒` : `${Math.floor(s 
 
 async function renderSettings() {
   try {
+    const privateKey = await V.privateKeyLoginStatus();
+    $('privateKeyLoginStatus').textContent = privateKey.enabled
+      ? '已启用：以后可以在登录页只输入账户私钥直接进入。'
+      : '此旧账户尚未启用。完成下面的一次性验证后即可只凭私钥登录。';
+    $('privateKeyEnableForm').classList.toggle('hidden', privateKey.enabled);
+  } catch (e) {
+    $('privateKeyLoginStatus').textContent = '读取失败：' + friendly(e);
+  }
+
+  try {
     const st = await V.syncStatus();
     const c = st.collections.contacts, k = st.collections.calls;
     $('statusBox').textContent =
@@ -479,6 +500,25 @@ $('exportBtn').onclick = () => {
   a.click();
   URL.revokeObjectURL(a.href);
   toast(`已导出 ${V.vault.contacts.size} 条。这个文件是明文，注意保管。`);
+};
+
+$('privateKeyEnableBtn').onclick = async () => {
+  const current = $('privateKeyCurrentPass').value;
+  const key = $('privateKeyEnableCode').value.trim();
+  if (!current || !key) return toast('请填写当前主口令和账户私钥', true);
+  const btn = $('privateKeyEnableBtn');
+  busy(btn, true, '正在验证…');
+  try {
+    await V.enablePrivateKeyLogin(current, key);
+    $('privateKeyCurrentPass').value = '';
+    $('privateKeyEnableCode').value = '';
+    toast('账户私钥直接登录已启用');
+    await renderSettings();
+  } catch (e) {
+    toast(friendly(e), true);
+  } finally {
+    busy(btn, false);
+  }
 };
 
 $('changePassBtn').onclick = async () => {

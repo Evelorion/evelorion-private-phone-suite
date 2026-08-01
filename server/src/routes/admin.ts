@@ -10,6 +10,7 @@ import {
   createAdminSession, destroyAdminSession, setSessionCookie, clearSessionCookie,
   requireAdmin, createInvite, listInvites, countAdmins, findAdmin,
 } from '../lib/admin.ts';
+import { adminMfaRequired, createAdminLoginChallenge } from '../lib/admin-mfa.ts';
 
 /**
  * 管理后台的接口。
@@ -72,6 +73,10 @@ export function registerAdminRoutes(app: FastifyInstance): void {
       throw new HttpError(401, 'invalid_credentials', '用户名或口令不正确');
     }
     clearAttempts(userKey);
+
+    if (adminMfaRequired(admin.id)) {
+      return createAdminLoginChallenge(admin.id, req);
+    }
 
     const token = createAdminSession(
       admin.id,

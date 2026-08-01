@@ -232,7 +232,7 @@ class SyncSetupActivity : BaseActivity() {
                     )
 
                     Mode.LOGIN -> {
-                        vault.login(
+                        val needsPrivateKeyUpgrade = vault.login(
                             baseUrl = resolvedServer,
                             username = username,
                             passphrase = passphrase,
@@ -241,6 +241,9 @@ class SyncSetupActivity : BaseActivity() {
                             requireScreenLock = false,
                             mfaCode = mfaCode,
                         )
+                        if (needsPrivateKeyUpgrade) {
+                            runOnUiThread { showPrivateKeyUpgradeDialog(passphrase) }
+                        }
                         null
                     }
 
@@ -325,6 +328,34 @@ class SyncSetupActivity : BaseActivity() {
             .setPositiveButton("继续") { _, _ ->
                 val code = input.text?.toString().orEmpty().trim()
                 if (code.isBlank()) toast("请输入验证码") else onCode(code)
+            }
+            .show()
+    }
+
+    private fun showPrivateKeyUpgradeDialog(currentPassphrase: String) {
+        val input = EditText(this).apply {
+            hint = "注册时保存的 14 组账户私钥"
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or
+                android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE
+            val padding = (24 * resources.displayMetrics.density).toInt()
+            setPadding(padding, padding / 2, padding, padding / 2)
+        }
+        MaterialAlertDialogBuilder(this)
+            .setTitle("启用账户私钥直接登录")
+            .setMessage("这是旧账户的一次性安全升级。验证后，以后只要用户名和账户私钥就能直接登录并解密。私钥本身不会上传。")
+            .setView(input)
+            .setNegativeButton("以后再说", null)
+            .setPositiveButton("启用") { _, _ ->
+                val code = input.text?.toString().orEmpty().trim()
+                if (code.isBlank()) {
+                    toast("请输入账户私钥")
+                    return@setPositiveButton
+                }
+                io.execute {
+                    runCatching { vault.enablePrivateKeyLogin(currentPassphrase, code) }
+                        .onSuccess { runOnUiThread { toast("账户私钥直接登录已启用") } }
+                        .onFailure { error -> runOnUiThread { toast(describe(error)) } }
+                }
             }
             .show()
     }
@@ -575,6 +606,7 @@ class SyncSetupActivity : BaseActivity() {
             "bad_registration_token" -> getString(R.string.err_bad_invite)
             "username_taken" -> getString(R.string.err_username_taken)
             "invalid_credentials" -> getString(R.string.err_bad_credentials)
+            "invalid_recovery_code" -> getString(R.string.err_private_key_login)
             "too_many_attempts" -> getString(R.string.err_rate_limited)
             else -> getString(R.string.err_server, e.status, e.message)
         }

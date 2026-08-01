@@ -114,12 +114,12 @@
     <string name="sync_field_invite">邀请码</string>
     <string name="sync_mode_register">注册</string>
     <string name="sync_mode_login">登录</string>
-    <string name="sync_mode_recover">用恢复码</string>
-    <string name="sync_field_recovery">恢复码</string>
+    <string name="sync_mode_recover">账户私钥</string>
+    <string name="sync_field_recovery">账户私钥</string>
     <string name="sync_hint_register">在服务器上创建一个新账号。需要管理员给的邀请码。</string>
     <string name="sync_hint_login">用已有账号登录。**这也是从云端恢复的方式** —— 换手机或重装后，登录同一个账号，联系人会自动拉回来。</string>
-    <string name="sync_hint_recover">忘了主口令时用这条路。填注册时抄下来的恢复码，联系人一样能拿回来。恢复之后请立刻设一个新的主口令。</string>
-    <string name="sync_recovered_set_new_pass">已恢复。请到「修改主口令」设一个新口令 —— 否则下次还得再用一次恢复码。</string>
+    <string name="sync_hint_recover">只需用户名和注册时保存的账户私钥即可直接登录并解密，不需要主口令。旧版本把它称为“恢复码”。</string>
+    <string name="sync_recovered_set_new_pass">已使用账户私钥登录。</string>
     <string name="sync_now">立即同步</string>
     <string name="sync_sign_out">退出登录</string>
     <string name="sync_signed_out">已退出</string>
@@ -132,9 +132,10 @@
     <string name="sync_integrity_warning">⚠ 同步完成，但清单校验发现 %d 处问题 —— 服务器返回的数据可能不完整或被回退过</string>
     <string name="sync_working">处理中…</string>
     <string name="sync_need_all_fields">请把上面的字段都填上</string>
-    <string name="sync_recovery_title">恢复码</string>
-    <string name="sync_recovery_desc">忘记主口令时，这是唯一能拿回数据的方式。抄在纸上收好 —— 它只显示这一次，服务器上也没有。</string>
-    <string name="sync_recovery_copy">复制恢复码</string>
+    <string name="sync_recovery_title">账户私钥</string>
+    <string name="sync_recovery_desc">它既能直接登录，也能解密云端数据。抄在纸上离线保管 —— 只显示这一次，服务器上没有明文。</string>
+    <string name="sync_recovery_copy">复制账户私钥</string>
+    <string name="err_private_key_login">账户私钥不正确，或这是尚未启用私钥登录的旧账户。请先用主口令登录一次并修改一次主口令，输入同一把账户私钥即可完成升级。</string>
     <string name="sync_url_must_be_https">服务器地址必须是 https —— 内容是密文，但访问令牌明文过网的话，拿到的人能删你服务器上的数据</string>
 
     <!-- 权限（两个 App 都声明，文案必须一致） -->

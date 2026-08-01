@@ -94,6 +94,51 @@ export async function login(username, passphrase, deviceName, mfaPrompt = null) 
   return session;
 }
 
+/** 使用账户私钥直接登录并解密，不需要主口令。 */
+export async function loginWithPrivateKey(username, privateKeyCode, deviceName, mfaPrompt = null) {
+  const kdf = await userApi(`/v1/account/kdf?username=${encodeURIComponent(username)}`, { auth: false });
+  const salt = C.fromB64(kdf.salt);
+  const recoveryKey = await C.parseRecoveryCode(privateKeyCode);
+  let session;
+  try {
+    session = await userApi('/v1/session/recovery', {
+      method: 'POST', auth: false,
+      body: {
+        username,
+        recoveryAuthSecret: await C.deriveRecoveryAuthSecret(recoveryKey, salt),
+        deviceName,
+        directLogin: true,
+      },
+    });
+    if (session.mfaRequired) {
+      if (!mfaPrompt) throw new Error('这个账户还要求二次验证');
+      session = await MFA.completeLogin(
+        session.mfaToken,
+        { methods: session.methods, requireAll: session.requireAll },
+        mfaPrompt,
+      );
+    }
+
+    const rkek = await C.deriveRecoveryKek(recoveryKey, salt);
+    try {
+      vault.dek = await C.unwrapDek(rkek, C.fromB64(session.dekWrapRecovery), true);
+    } catch {
+      clearTokens();
+      throw new Error('账户私钥不属于这个账号');
+    } finally {
+      C.wipe(rkek);
+    }
+    setTokens(session.accessToken, session.refreshToken, session.accessExpiresAt);
+    vault.username = username;
+    vault.accountId = session.accountId;
+    vault.salt = salt;
+    vault.kdf = { memoryKiB: kdf.memoryKiB, iterations: kdf.iterations, parallelism: kdf.parallelism };
+    return session;
+  } finally {
+    C.wipe(recoveryKey);
+  }
+}
+
 export async function register(username, passphrase, inviteCode, deviceName) {
   const v = await C.createVault(passphrase);
   const res = await userApi('/v1/account/register', {
@@ -348,6 +393,7 @@ export async function changePassphrase(currentPassphrase, newPassphrase, recover
         },
         dekWrapPassword: C.toB64(await C.wrapDek(newKek, vault.dek, false)),
         dekWrapRecovery: C.toB64(await C.wrapDek(newRkek, vault.dek, true)),
+        recoveryAuthSecret: await C.deriveRecoveryAuthSecret(recoveryKey, newSalt),
       },
     });
     vault.salt = newSalt;
@@ -357,9 +403,40 @@ export async function changePassphrase(currentPassphrase, newPassphrase, recover
   }
 }
 
+export async function enablePrivateKeyLogin(currentPassphrase, privateKeyCode) {
+  const privateKey = await C.parseRecoveryCode(privateKeyCode);
+  const info = await userApi('/v1/vault');
+  const salt = C.fromB64(info.kdf.salt);
+  const rkek = await C.deriveRecoveryKek(privateKey, salt);
+  const mk = await C.deriveMasterKey(
+    currentPassphrase, salt, info.kdf.memoryKiB, info.kdf.iterations, info.kdf.parallelism,
+  );
+  try {
+    const unwrapped = await C.unwrapDek(rkek, C.fromB64(info.dekWrapRecovery), true);
+    try {
+      if (!C.equals(unwrapped, vault.dek)) throw new Error('账户私钥不属于这个账号');
+    } finally {
+      C.wipe(unwrapped);
+    }
+    return userApi('/v1/vault/private-key-login/enable', {
+      method: 'POST',
+      body: {
+        currentAuthSecret: await C.deriveAuthSecret(mk, salt),
+        privateKeyAuthSecret: await C.deriveRecoveryAuthSecret(privateKey, salt),
+      },
+    });
+  } finally {
+    C.wipe(privateKey, rkek, mk);
+  }
+}
+
 export const listDevices = () => userApi('/v1/devices');
 export const revokeDevice = (id) => userApi(`/v1/devices/${encodeURIComponent(id)}`, { method: 'DELETE' });
 export const syncStatus = () => userApi('/v1/sync/status');
+export const privateKeyLoginStatus = async () => {
+  const info = await userApi('/v1/vault');
+  return { enabled: info.privateKeyLoginEnabled === true };
+};
 
 export async function destroyAccount(passphrase) {
   const mk = await C.deriveMasterKey(

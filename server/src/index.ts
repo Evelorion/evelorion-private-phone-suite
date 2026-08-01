@@ -12,6 +12,7 @@ import fastifyStatic from '@fastify/static';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { digitalAssetLinks } from './lib/android-passkeys.ts';
+import { registerAdminMfaRoutes } from './lib/admin-mfa.ts';
 
 const app = Fastify({
   logger: {
@@ -105,6 +106,7 @@ registerAdminRoutes(app);
 registerSyncRoutes(app);
 registerBlobRoutes(app);
 registerMfaRoutes(app);
+registerAdminMfaRoutes(app);
 
 sweep();
 setInterval(sweep, 86400_000).unref();

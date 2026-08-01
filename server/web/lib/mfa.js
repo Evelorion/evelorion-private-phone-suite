@@ -32,7 +32,7 @@ function bufToB64url(buf) {
 }
 
 /** 服务端给的 options 里，challenge 和各种 id 都是 base64url 字符串，要转回 buffer。 */
-function reviveOptions(options) {
+export function reviveOptions(options) {
   const o = { ...options, challenge: b64urlToBuf(options.challenge) };
   if (o.user) o.user = { ...o.user, id: b64urlToBuf(o.user.id) };
   if (o.excludeCredentials) {
@@ -45,7 +45,7 @@ function reviveOptions(options) {
 }
 
 /** 把浏览器返回的凭据转成服务端能收的 JSON。 */
-function serializeCredential(cred) {
+export function serializeCredential(cred) {
   const r = cred.response;
   const out = {
     id: cred.id,

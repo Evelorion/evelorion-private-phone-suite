@@ -12,6 +12,7 @@ import Database from 'better-sqlite3';
 import * as C from './client.ts';
 import { threeWayMerge, sameContact, type Contact } from './merge.ts';
 import { MANIFEST_UUID, MAX_ENTRIES, encodeManifest, decodeManifest, verifyManifest } from './manifest.ts';
+import { currentCode } from '../src/lib/totp.ts';
 
 const PORT = 18443;
 const BASE = `http://127.0.0.1:${PORT}`;
@@ -119,6 +120,7 @@ async function main(): Promise<void> {
         registrationToken: 'test-invite',
         username: 'miko',
         authSecret: vault.authSecret,
+        recoveryAuthSecret: C.deriveRecoveryAuthSecret(vault.recoveryKey, vault.salt),
         kdf: {
           salt: vault.salt.toString('base64'),
           memoryKiB: C.KDF_MEMORY_KIB, iterations: C.KDF_ITERATIONS, parallelism: C.KDF_PARALLELISM,
@@ -320,6 +322,7 @@ async function main(): Promise<void> {
         kdf: { salt: newSalt.toString('base64'), memoryKiB: C.KDF_MEMORY_KIB, iterations: C.KDF_ITERATIONS, parallelism: C.KDF_PARALLELISM },
         dekWrapPassword: C.wrapDek(C.deriveKek(newMk, newSalt), recoveredDek, false).toString('base64'),
         dekWrapRecovery: C.wrapDek(C.deriveRecoveryKek(recoveredKey, newSalt), recoveredDek, true).toString('base64'),
+        recoveryAuthSecret: C.deriveRecoveryAuthSecret(recoveredKey, newSalt),
       }),
     });
     check('换口令成功', rewrap.ok === true);
@@ -329,6 +332,55 @@ async function main(): Promise<void> {
       body: JSON.stringify({ username: 'miko', authSecret: C.deriveAuthSecret(newMk, newSalt), deviceName: '手机 C' }),
     });
     check('新口令能登录', typeof relogin.accessToken === 'string');
+    const privateKeyLogin = await api('/v1/session/recovery', {
+      method: 'POST',
+      body: JSON.stringify({
+        username: 'miko',
+        recoveryAuthSecret: C.deriveRecoveryAuthSecret(recoveredKey, newSalt),
+        deviceName: '账户私钥登录',
+        directLogin: true,
+      }),
+    });
+    check('只用账户私钥可以直接登录',
+      typeof privateKeyLogin.accessToken === 'string' && privateKeyLogin.mustResetPassphrase === false);
+    const privateKeyDek = C.unwrapDek(
+      C.deriveRecoveryKek(recoveredKey, newSalt),
+      Buffer.from(privateKeyLogin.dekWrapRecovery, 'base64'),
+      true,
+    );
+    check('账户私钥直接登录后能解开同一把数据密钥', privateKeyDek.equals(dek));
+
+    const legacyDb = new Database(DB);
+    legacyDb.prepare('UPDATE accounts SET recovery_auth_hash = NULL WHERE username = ?').run('miko');
+    legacyDb.close();
+    const legacyPrivateKey = await api('/v1/session/recovery', {
+      method: 'POST',
+      body: JSON.stringify({
+        username: 'miko',
+        recoveryAuthSecret: C.deriveRecoveryAuthSecret(recoveredKey, newSalt),
+        deviceName: '旧账户',
+        directLogin: true,
+      }),
+    });
+    check('旧账户缺少私钥校验哈希时明确拒绝', legacyPrivateKey.__status === 401);
+    const enablePrivateKey = await api('/v1/vault/private-key-login/enable', {
+      method: 'POST', token: relogin.accessToken,
+      body: JSON.stringify({
+        currentAuthSecret: C.deriveAuthSecret(newMk, newSalt),
+        privateKeyAuthSecret: C.deriveRecoveryAuthSecret(recoveredKey, newSalt),
+      }),
+    });
+    check('旧账户登录后可以一次性启用私钥登录', enablePrivateKey.ok === true);
+    const upgradedPrivateKey = await api('/v1/session/recovery', {
+      method: 'POST',
+      body: JSON.stringify({
+        username: 'miko',
+        recoveryAuthSecret: C.deriveRecoveryAuthSecret(recoveredKey, newSalt),
+        deviceName: '升级后的旧账户',
+        directLogin: true,
+      }),
+    });
+    check('旧账户升级后只用账户私钥即可登录', typeof upgradedPrivateKey.accessToken === 'string');
     const dekC = C.unwrapDek(C.deriveKek(newMk, newSalt), Buffer.from(relogin.dekWrapPassword, 'base64'), false);
     check('换口令后老联系人依然能解开', dekC.equals(dek));
     const afterRewrap = await api('/v1/sync/changes?since=0', { token: relogin.accessToken });
@@ -704,6 +756,50 @@ async function main(): Promise<void> {
     const pwBad = await admCall('/v1/admin/password', { method: 'POST',
       body: JSON.stringify({ currentPassword: 'nope-nope-nope', newPassword: 'yet-another-long-one-2026' }) }, admCookie);
     check('管理员改口令要验当前口令', pwBad.__status === 401);
+
+    const adminTotpSetup = await admCall('/v1/admin/mfa/totp/setup', { method: 'POST' }, admCookie);
+    check('管理员可以开始设置验证器', typeof adminTotpSetup.secret === 'string');
+    const adminTotpConfirm = await admCall('/v1/admin/mfa/totp/confirm', {
+      method: 'POST', body: JSON.stringify({ code: currentCode(adminTotpSetup.secret) }),
+    }, admCookie);
+    check('管理员验证器确认后生成一次性备份码',
+      adminTotpConfirm.ok === true && adminTotpConfirm.backupCodes?.length === 8);
+
+    const adminMfaLogin = await admCall('/v1/admin/login', {
+      method: 'POST', body: JSON.stringify({ username: 'admin1', password: 'a-very-long-admin-pass-2026' }),
+    });
+    check('管理员开启 MFA 后密码步骤不再直接发 Cookie',
+      adminMfaLogin.mfaRequired === true && !adminMfaLogin.__cookie);
+    const adminMfaDone = await admCall('/v1/admin/login/mfa/complete', {
+      method: 'POST', body: JSON.stringify({
+        mfaToken: adminMfaLogin.mfaToken,
+        totpCode: currentCode(adminTotpSetup.secret),
+      }),
+    });
+    check('正确 TOTP 可以完成管理员登录', adminMfaDone.ok === true && !!adminMfaDone.__cookie);
+    const replayAdminMfa = await admCall('/v1/admin/login/mfa/complete', {
+      method: 'POST', body: JSON.stringify({
+        mfaToken: adminMfaLogin.mfaToken,
+        totpCode: currentCode(adminTotpSetup.secret),
+      }),
+    });
+    check('管理员 MFA 挑战只能使用一次', replayAdminMfa.__status === 400);
+
+    const backupLoginStart = await admCall('/v1/admin/login', {
+      method: 'POST', body: JSON.stringify({ username: 'admin1', password: 'a-very-long-admin-pass-2026' }),
+    });
+    const backupCode = adminTotpConfirm.backupCodes[0];
+    const backupLogin = await admCall('/v1/admin/login/mfa/complete', {
+      method: 'POST', body: JSON.stringify({ mfaToken: backupLoginStart.mfaToken, backupCode }),
+    });
+    check('管理员备份码可以应急登录', backupLogin.ok === true);
+    const backupReuseStart = await admCall('/v1/admin/login', {
+      method: 'POST', body: JSON.stringify({ username: 'admin1', password: 'a-very-long-admin-pass-2026' }),
+    });
+    const backupReuse = await admCall('/v1/admin/login/mfa/complete', {
+      method: 'POST', body: JSON.stringify({ mfaToken: backupReuseStart.mfaToken, backupCode }),
+    });
+    check('管理员备份码只能使用一次', backupReuse.__status === 401);
 
     const logout = await admCall('/v1/admin/logout', { method: 'POST' }, admCookie);
     check('管理员退出成功', logout.ok === true);

@@ -17,15 +17,24 @@
   <div class="card">
     <div class="tabs" style="margin-bottom:8px">
       <button id="tabLogin" class="active">登录</button>
+      <button id="tabPrivateKey">账户私钥</button>
       <button id="tabRegister">注册</button>
     </div>
 
     <label>用户名</label>
     <input id="username" autocomplete="username" spellcheck="false">
 
-    <label>主口令</label>
-    <input id="passphrase" type="password" autocomplete="current-password">
-    <div class="hint" id="passHint">主口令不会上传，也无法找回。</div>
+    <div id="passphraseWrap">
+      <label>主口令</label>
+      <input id="passphrase" type="password" autocomplete="current-password">
+      <div class="hint" id="passHint">主口令不会上传，也无法找回。</div>
+    </div>
+
+    <div id="privateKeyWrap" class="hidden">
+      <label>账户私钥</label>
+      <textarea id="accountPrivateKey" rows="4" spellcheck="false" autocomplete="off" placeholder="14 组 4 字符"></textarea>
+      <div class="hint">注册时只显示一次的账户私钥（旧版本名称是“恢复码”）。私钥只在本地派生验证值和解密数据，不会上传。</div>
+    </div>
 
     <div id="inviteWrap" class="hidden">
       <label>邀请码</label>
@@ -233,15 +242,28 @@
       </div>
 
       <div class="card">
+        <h3>账户私钥登录</h3>
+        <p class="sub" id="privateKeyLoginStatus">正在读取状态…</p>
+        <div id="privateKeyEnableForm" class="hidden">
+          <p class="warn">这是旧账户的一次性升级。验证成功后，以后只用账户私钥也能直接登录。</p>
+          <label>当前主口令</label>
+          <input id="privateKeyCurrentPass" type="password" autocomplete="current-password">
+          <label>账户私钥（旧名称：恢复码）</label>
+          <textarea id="privateKeyEnableCode" rows="4" spellcheck="false" placeholder="14 组 4 字符"></textarea>
+          <div class="actions"><button id="privateKeyEnableBtn" class="primary">启用私钥直接登录</button></div>
+        </div>
+      </div>
+
+      <div class="card">
         <h3>修改主口令</h3>
         <p class="sub">
-          只会重新包裹密钥，服务器上的联系人一条都不用重传。恢复码保持不变。
+          只会重新包裹密钥，服务器上的联系人一条都不用重传。账户私钥保持不变。
         </p>
         <label>当前主口令</label>
         <input id="oldPass" type="password" autocomplete="current-password">
         <label>新主口令（至少 10 位）</label>
         <input id="newPass" type="password" autocomplete="new-password">
-        <label>恢复码（用来重新包裹）</label>
+        <label>账户私钥（用来重新包裹）</label>
         <input id="recoveryForChange" spellcheck="false" placeholder="14 组 4 字符">
         <div class="actions"><button id="changePassBtn" class="primary">修改</button></div>
       </div>

@@ -170,7 +170,7 @@ class VaultManager private constructor(private val context: Context) {
         cacheOnDevice: Boolean,
         requireScreenLock: Boolean,
         mfaCode: String? = null,
-    ) {
+    ): Boolean {
         session.validateUrl(baseUrl)?.let { throw IllegalArgumentException(it) }
         session.baseUrl = baseUrl
 
@@ -203,15 +203,55 @@ class VaultManager private constructor(private val context: Context) {
             } finally {
                 Crypto.wipe(kek)
             }
+            return !response.optBoolean("privateKeyLoginEnabled", false)
         } finally {
             Crypto.wipe(masterKey)
+        }
+    }
+
+    fun enablePrivateKeyLogin(currentPassphrase: String, privateKeyCode: String) {
+        val dek = dekInMemory ?: throw IllegalStateException("请先解锁")
+        val privateKey = RecoveryCode.parse(privateKeyCode)
+        val info = api().getVault()
+        val kdf = info.getJSONObject("kdf")
+        val salt = Base64.decode(kdf.getString("salt"), Base64.NO_WRAP)
+        val masterKey = VaultCrypto.deriveMasterKey(
+            currentPassphrase,
+            salt,
+            kdf.optInt("memoryKiB", VaultCrypto.KDF_MEMORY_KIB),
+            kdf.optInt("iterations", VaultCrypto.KDF_ITERATIONS),
+            kdf.optInt("parallelism", VaultCrypto.KDF_PARALLELISM),
+        )
+        val rkek = VaultCrypto.deriveRecoveryKek(privateKey, salt)
+        try {
+            val verifiedDek = VaultCrypto.unwrapDek(
+                rkek,
+                Base64.decode(info.getString("dekWrapRecovery"), Base64.NO_WRAP),
+                forRecovery = true,
+            )
+            try {
+                require(verifiedDek.contentEquals(dek)) { "账户私钥不属于这个账号" }
+            } finally {
+                Crypto.wipe(verifiedDek)
+            }
+            api().enablePrivateKeyLogin(
+                currentAuthSecret = VaultCrypto.deriveAuthSecret(masterKey, salt),
+                privateKeyAuthSecret = VaultCrypto.deriveRecoveryAuthSecret(privateKey, salt),
+            )
+        } catch (e: javax.crypto.AEADBadTagException) {
+            throw IllegalArgumentException("账户私钥不属于这个账号")
+        } finally {
+            Crypto.wipe(privateKey, masterKey, rkek)
         }
     }
 
     fun passkeyRequestJson(baseUrl: String, mfaToken: String): String {
         session.validateUrl(baseUrl)?.let { throw IllegalArgumentException(it) }
         session.baseUrl = baseUrl
-        return SyncApi(baseUrl, session).getMfaOptions(mfaToken).toString()
+        val response = SyncApi(baseUrl, session).getMfaOptions(mfaToken)
+        val options = response.optJSONObject("options")
+            ?: throw IllegalStateException("服务器没有返回可用的通行密钥选项")
+        return options.toString()
     }
 
     fun completePasskeyLogin(
@@ -422,6 +462,7 @@ class VaultManager private constructor(private val context: Context) {
                 parallelism = VaultCrypto.KDF_PARALLELISM,
                 dekWrapPassword = VaultCrypto.wrapDek(newKek, dek, forRecovery = false),
                 dekWrapRecovery = VaultCrypto.wrapDek(newRkek, dek, forRecovery = true),
+                recoveryAuthSecret = VaultCrypto.deriveRecoveryAuthSecret(recoveryKey, newSalt),
             )
             session.saveKdf(
                 newSalt, VaultCrypto.KDF_MEMORY_KIB, VaultCrypto.KDF_ITERATIONS,

@@ -62,6 +62,7 @@ class SyncApi(
             put("username", username)
             put("recoveryAuthSecret", recoveryAuthSecret)
             put("deviceName", deviceName)
+            put("directLogin", true)
         },
         authenticated = false,
     )
@@ -154,6 +155,14 @@ class SyncApi(
 
     fun getVault(): JSONObject = request("GET", "/v1/vault", null)
 
+    fun enablePrivateKeyLogin(currentAuthSecret: String, privateKeyAuthSecret: String): JSONObject = request(
+        "POST", "/v1/vault/private-key-login/enable",
+        JSONObject().apply {
+            put("currentAuthSecret", currentAuthSecret)
+            put("privateKeyAuthSecret", privateKeyAuthSecret)
+        },
+    )
+
     fun rewrapVault(
         currentAuthSecret: String,
         newAuthSecret: String,
@@ -163,6 +172,7 @@ class SyncApi(
         parallelism: Int,
         dekWrapPassword: ByteArray,
         dekWrapRecovery: ByteArray,
+        recoveryAuthSecret: String,
     ): JSONObject = request(
         "POST", "/v1/vault/rewrap",
         JSONObject().apply {
@@ -176,6 +186,7 @@ class SyncApi(
             })
             put("dekWrapPassword", b64(dekWrapPassword))
             put("dekWrapRecovery", b64(dekWrapRecovery))
+            put("recoveryAuthSecret", recoveryAuthSecret)
         },
     )
 

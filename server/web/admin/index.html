@@ -40,6 +40,19 @@
     <label>口令</label>
     <input id="lgPass" type="password" autocomplete="current-password">
     <div class="actions"><button id="lgBtn" class="primary grow">登录</button></div>
+    <div id="lgMfa" class="hidden">
+      <hr style="margin:18px 0;border:0;border-top:1px solid var(--border)">
+      <h3>二次验证</h3>
+      <p class="sub">管理员账户需要再验证一次身份。</p>
+      <div class="actions" id="lgPasskeyWrap">
+        <button id="lgPasskey" class="primary grow">使用通行密钥</button>
+      </div>
+      <div id="lgCodeWrap">
+        <label>验证器验证码或备份码</label>
+        <input id="lgCode" autocomplete="one-time-code" placeholder="000000">
+        <div class="actions"><button id="lgCodeBtn" class="primary grow">验证并登录</button></div>
+      </div>
+    </div>
     <div id="lgMsg"></div>
   </div>
   <div class="note">
@@ -107,6 +120,11 @@
 
     <!-- 安全 -->
     <div id="viewSecurity" class="hidden">
+      <div class="card">
+        <h3>管理员二次验证</h3>
+        <p class="sub">建议至少开启验证器或通行密钥其中一种；备份码只显示一次。</p>
+        <div id="adminMfaBox"></div>
+      </div>
       <div class="card">
         <h3>修改我的口令</h3>
         <label>当前口令</label>
