@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Policy
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.ViewAgenda
 import androidx.compose.material3.*
@@ -49,6 +50,7 @@ fun SettingsScreen(
     onSeedColor: (Int) -> Unit,
     onSetDefaultApp: () -> Unit,
     onReimport: () -> Unit,
+    onPrivacyPolicy: () -> Unit,
 ) {
     val s = state.settings
     Scaffold(
@@ -246,6 +248,15 @@ fun SettingsScreen(
                     Modifier.padding(20.dp),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            item {
+                ListItem(
+                    headlineContent = { Text("隐私政策") },
+                    supportingContent = { Text("查看短信、联系人和权限的使用说明") },
+                    leadingContent = { Icon(Icons.Default.Policy, null) },
+                    modifier = Modifier.clickable(onClick = onPrivacyPolicy),
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                 )
             }
         }

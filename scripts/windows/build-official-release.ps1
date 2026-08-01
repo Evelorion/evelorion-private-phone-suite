@@ -31,7 +31,7 @@ try {
 
     Push-Location "$repoRoot\messages-app"
     try {
-        & .\gradlew.bat :app:testDebugUnitTest :app:lintRelease :app:assembleRelease --no-daemon
+        & .\gradlew.bat :app:testDebugUnitTest :app:lintRelease :app:assembleRelease :app:bundleRelease --no-daemon
         if ($LASTEXITCODE -ne 0) { throw "Messages release build failed." }
     } finally {
         Pop-Location

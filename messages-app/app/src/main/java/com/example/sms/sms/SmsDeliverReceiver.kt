@@ -21,23 +21,11 @@ class SmsDeliverReceiver : BroadcastReceiver() {
     }
 }
 
-/**
- * SMS_RECEIVED —— 非默认短信应用时的兜底。
- * 如果本应用已是默认短信应用，这里直接忽略，避免和 SMS_DELIVER 重复入库。
- */
-class SmsReceivedReceiver : BroadcastReceiver() {
-
-    override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action != Telephony.Sms.Intents.SMS_RECEIVED_ACTION) return
-        if (SmsRoleCheck.isDefaultSmsApp(context)) return
-        handleIncomingSms(context, intent, writeToSystemInbox = false)
-    }
-}
-
 /** 彩信通知（WAP Push）；这里只登记一条占位消息并提示，完整 MMS 下载超出短信范畴 */
 class MmsDeliverReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
+        if (!SmsRoleCheck.isDefaultSmsApp(context)) return
         Graph.init(context)
         val repo = Graph.repository
         val pending = goAsync()

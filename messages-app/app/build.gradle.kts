@@ -10,16 +10,16 @@ plugins {
 
 android {
     namespace = "com.example.sms"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         // 注意：不能用 com.example.* —— ColorOS / OriginOS / MIUI 会把它判定为
         // 「测试应用」直接拦截安装，提示「应用未安装」。
         applicationId = "com.evelorion.messages"
         minSdk = 24
-        targetSdk = 34
-        versionCode = 3
-        versionName = "1.0.1-preview.2"
+        targetSdk = 36
+        versionCode = 4
+        versionName = "1.0.1-preview.3"
         vectorDrawables { useSupportLibrary = true }
     }
 

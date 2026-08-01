@@ -29,7 +29,7 @@ class SystemSmsStore(private val context: Context) {
         val read: Boolean,
     )
 
-    private fun canRead(): Boolean = ContextCompat.checkSelfPermission(
+    private fun canRead(): Boolean = isDefaultSmsApp() && ContextCompat.checkSelfPermission(
         context, Manifest.permission.READ_SMS,
     ) == PackageManager.PERMISSION_GRANTED
 

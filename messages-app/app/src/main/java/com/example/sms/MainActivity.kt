@@ -124,7 +124,8 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private val smsPermissions = buildList {
+/** Google Play 要求：只有已经持有默认短信角色后才能请求这些短信权限。 */
+private val defaultSmsAppPermissions = buildList {
     add(Manifest.permission.READ_SMS)
     add(Manifest.permission.SEND_SMS)
     add(Manifest.permission.RECEIVE_SMS)
@@ -180,18 +181,17 @@ fun SmsApp(
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
-    ) { result ->
-        hasSmsPermission = result[Manifest.permission.READ_SMS] ?: hasSmsPermission
-        hasContactsPermission = result[Manifest.permission.READ_CONTACTS] ?: hasContactsPermission
+    ) {
+        hasSmsPermission = context.hasPermission(Manifest.permission.READ_SMS)
+        hasContactsPermission = context.hasPermission(Manifest.permission.READ_CONTACTS)
         hasPhoneStatePermission = context.hasPermission(Manifest.permission.READ_PHONE_STATE)
-        if (hasSmsPermission) listVm.importSystemSms()
+        if (context.isDefaultSmsApp() && hasSmsPermission) listVm.importSystemSms()
     }
 
     val defaultAppLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
     ) {
         isDefaultSms = context.isDefaultSmsApp()
-        if (hasSmsPermission) listVm.importSystemSms()
     }
 
     val requestDefaultSmsApp: () -> Unit = {
@@ -232,12 +232,23 @@ fun SmsApp(
         }
     }
 
-    LaunchedEffect(Unit) {
-        if (!permissionsAsked) {
-            permissionsAsked = true
-            val missing = smsPermissions.filterNot { context.hasPermission(it) }
-            if (missing.isNotEmpty()) permissionLauncher.launch(missing.toTypedArray())
-            else listVm.importSystemSms()
+    // Google Play 的 SMS/Call Log 规则要求顺序必须是：
+    // 先成为默认短信应用，再请求任何短信权限。失去角色后也不再读取系统短信。
+    LaunchedEffect(isDefaultSms) {
+        if (!isDefaultSms) {
+            permissionsAsked = false
+            return@LaunchedEffect
+        }
+        if (permissionsAsked) return@LaunchedEffect
+        permissionsAsked = true
+        val missing = defaultSmsAppPermissions.filterNot { context.hasPermission(it) }
+        if (missing.isNotEmpty()) {
+            permissionLauncher.launch(missing.toTypedArray())
+        } else {
+            hasSmsPermission = true
+            hasContactsPermission = true
+            hasPhoneStatePermission = true
+            listVm.importSystemSms()
         }
     }
 
@@ -411,6 +422,14 @@ fun SmsApp(
                 onSeedColor = vm::setSeedColor,
                 onSetDefaultApp = requestDefaultSmsApp,
                 onReimport = vm::reimport,
+                onPrivacyPolicy = {
+                    context.startActivity(
+                        Intent(
+                            Intent.ACTION_VIEW,
+                            Uri.parse("https://contacts.etheraler.com/privacy/"),
+                        )
+                    )
+                },
             )
         }
     }

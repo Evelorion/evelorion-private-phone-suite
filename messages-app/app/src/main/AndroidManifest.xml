@@ -97,16 +97,6 @@
             </intent-filter>
         </receiver>
 
-        <!-- 非默认短信应用时的兜底接收（SMS_RECEIVED） -->
-        <receiver
-            android:name=".sms.SmsReceivedReceiver"
-            android:exported="true"
-            android:permission="android.permission.BROADCAST_SMS">
-            <intent-filter android:priority="999">
-                <action android:name="android.provider.Telephony.SMS_RECEIVED" />
-            </intent-filter>
-        </receiver>
-
         <!-- 默认短信应用组件 2/4：WAP_PUSH_DELIVER（彩信） -->
         <receiver
             android:name=".sms.MmsDeliverReceiver"

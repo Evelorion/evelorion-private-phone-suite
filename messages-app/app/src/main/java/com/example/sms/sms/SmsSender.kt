@@ -10,6 +10,7 @@ import com.example.sms.data.db.MsgType
 import com.example.sms.data.repo.MessageRepository
 import com.example.sms.util.PhoneUtils
 import com.example.sms.util.SimUtils
+import com.example.sms.util.SmsRoleCheck
 
 /**
  * 真实发送：SmsManager.sendMultipartTextMessage
@@ -50,6 +51,8 @@ class SmsSender(
         body: String,
         subId: Int = SimUtils.SUB_DEFAULT,
     ): List<Long> {
+        // Google Play 只允许当前默认短信应用使用 SEND_SMS。
+        if (!SmsRoleCheck.isDefaultSmsApp(context)) return emptyList()
         val recipients = PhoneUtils.splitAddresses(addressJoined)
         if (recipients.isEmpty() || body.isBlank()) return emptyList()
 
@@ -69,6 +72,10 @@ class SmsSender(
         body: String,
         subId: Int = SimUtils.SUB_DEFAULT,
     ) {
+        if (!SmsRoleCheck.isDefaultSmsApp(context)) {
+            repository.setStatus(messageId, MsgStatus.FAILED, "请先把本应用设为默认短信应用")
+            return
+        }
         repository.setStatus(messageId, MsgStatus.PENDING, null)
         dispatch(messageId, address, body, subId)
     }
