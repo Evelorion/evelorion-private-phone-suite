@@ -376,7 +376,7 @@ label/description 引用的字符串），否则以先装的那个为准，行�
 Android 端的 Kotlin 代码**没有经过编译**（开发环境里没有 Android SDK）。
 可能有拼写、import、Room 注解处理方面的问题。
 
-服务端和密码学协议**跑过测试**：`npm run test:e2e` 有 61 项断言全绿，
+服务端和密码学协议**跑过测试**：`npm run test:e2e` 有 163 项断言全绿，
 包括「数据库文件里搜不到任何一个联系人的明文」这一组。
 `CryptoVectorsTest` 的期望值就是从那套实现导出的，
 所以只要它在真机上通过，两端的密码学就是对齐的。
@@ -393,7 +393,7 @@ server/                       零知识同步服务端（Node + TypeScript）
   src/                          实现
   test/client.ts                参考客户端，同时是 Kotlin 端的规格说明
   test/merge.ts                 三方合并参考实现
-  test/e2e.ts                   端到端验收，61 项断言
+  test/e2e.ts                   端到端验收，163 项断言
   test/vectors.expected.json    交叉校验用的固定测试向量
   Dockerfile / docker-compose.yml / Caddyfile.example
 android/

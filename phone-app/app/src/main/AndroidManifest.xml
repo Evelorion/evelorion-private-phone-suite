@@ -28,6 +28,9 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.VIBRATE" />
 
+    <!-- 没有电话硬件的平板/ChromeOS 仍可安装；应用内会提示无法成为默认拨号器。 -->
+    <uses-feature android:name="android.hardware.telephony" android:required="false" />
+
     <!-- 读通讯录的加密联系人，以及向它要 calls 子密钥 -->
     <uses-permission android:name="com.evelorion.permission.READ_PRIVATE_CONTACTS" />
     <uses-permission android:name="com.evelorion.permission.VAULT_BRIDGE" />

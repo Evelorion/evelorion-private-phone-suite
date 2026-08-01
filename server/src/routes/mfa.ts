@@ -455,11 +455,13 @@ export function registerMfaRoutes(app: FastifyInstance): void {
       throw new HttpError(403, 'forbidden', '验证会话不属于当前账号');
     }
 
-    const { rpID, origin } = rpConfig();
+    const { rpID, authenticationOrigins } = rpConfig();
     const verification = await verifyRegistrationResponse({
       response: body.response as never,
       expectedChallenge: stored.challenge,
-      expectedOrigin: origin,
+      // 网页使用 PUBLIC_ORIGIN；Android Credential Manager 使用
+      // android:apk-key-hash 来源。注册与登录都必须显式信任原生来源。
+      expectedOrigin: authenticationOrigins,
       expectedRPID: rpID,
     }).catch((e: Error) => {
       throw new HttpError(400, 'passkey_invalid', `通行密钥验证失败：${e.message}`);

@@ -1,0 +1,28 @@
+# 单公网入口示例：服务器已有一个 Docker 化的 443 总反代。
+# 总反代必须加入 CONTACTS_NETWORK_NAME 指定的网络，并代理到
+# http://contacts-sync:8443。这里没有 ports，公网不会出现 :8443 入口。
+services:
+  sync:
+    build: .
+    image: contacts-sync:latest
+    container_name: contacts-sync
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - sync-data:/app/data
+    expose:
+      - "8443"
+    networks:
+      - contacts
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8443/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+networks:
+  contacts:
+    name: ${CONTACTS_NETWORK_NAME:-contacts-sync-net}
+
+volumes:
+  sync-data:

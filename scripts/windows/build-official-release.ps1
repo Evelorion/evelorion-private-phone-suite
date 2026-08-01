@@ -15,7 +15,7 @@ try {
 
     Push-Location "$repoRoot\contacts-app"
     try {
-        & .\gradlew.bat :app:assembleRelease
+        & .\gradlew.bat :app:testDebugUnitTest :app:lintRelease :app:assembleRelease --no-daemon
         if ($LASTEXITCODE -ne 0) { throw "Contacts release build failed." }
     } finally {
         Pop-Location
@@ -23,7 +23,7 @@ try {
 
     Push-Location "$repoRoot\phone-app"
     try {
-        & .\gradlew.bat :app:assembleRelease
+        & .\gradlew.bat :app:testDebugUnitTest :app:lintRelease :app:assembleRelease --no-daemon
         if ($LASTEXITCODE -ne 0) { throw "Phone release build failed." }
     } finally {
         Pop-Location

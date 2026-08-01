@@ -3,12 +3,29 @@
 这份文档只使用示例地址，不包含任何真实服务器、域名、账号或密钥。
 Android APK 必须在本机构建；VPS 只运行 `server`。
 
+## 0. 只有一个公网入口
+
+```text
+浏览器 / Android ── HTTPS 443 ── Caddy/Nginx ── sync:8443（服务器内部）
+```
+
+必须同时满足：
+
+- 网页和 Android 只填写 `https://contacts.example.com`
+- `PUBLIC_ORIGIN=https://contacts.example.com`
+- 公网防火墙不开放 8443
+- 不运行任何把宿主机 `0.0.0.0:8443` 映射出去的代理容器
+- 8443 只允许 Caddy/Nginx 在本机回环或 Docker 内网访问
+
+通行密钥会把端口算进 Web Origin。只保留无端口的 443 入口，可以避免同一账号在
+两个来源之间出现注册、验证状态不一致。
+
 ## 1. 准备条件
 
 - 一台 Ubuntu 24.04 VPS
 - 一个域名，例如 `contacts.example.com`
 - 域名的 A/AAAA 记录已指向 VPS
-- 防火墙仅开放 SSH、HTTP 和 HTTPS：`22`、`80`、`443`
+- 防火墙仅开放 `22`、`80`、`443`
 - VPS 已安装 Docker Engine、Docker Compose 插件和 Caddy
 
 安装基础软件：
@@ -37,7 +54,7 @@ sudo mkdir -p /opt/contacts-sync
 sudo chown "$USER":"$USER" /opt/contacts-sync
 cd /opt/contacts-sync
 
-git clone --filter=blob:none --no-checkout YOUR_PRIVATE_REPOSITORY_URL repo
+git clone --filter=blob:none --no-checkout YOUR_REPOSITORY_URL repo
 cd repo
 git sparse-checkout init --cone
 git sparse-checkout set server
@@ -94,8 +111,26 @@ Caddy 会自动申请并续期 TLS 证书。验证：
 curl --fail https://你的域名/v1/health
 ```
 
-应用中的“服务器地址”填写 `https://你的域名`，不要填写邀请码到源码或
-Gradle 配置中。邀请码只在首次注册时输入。
+如果 443 已由另一个 Docker 总入口负责，则 `sync` 只使用 `expose: ["8443"]`，
+不要配置 `ports`。仓库提供了可直接复制的配置：
+
+```bash
+cp docker-compose.external-proxy.example.yml docker-compose.yml
+echo 'CONTACTS_NETWORK_NAME=contacts-sync-net' >> .env
+docker compose up -d
+```
+
+把总入口加入 `sync` 所在网络：
+
+```bash
+docker network connect 你的同步网络 你的总入口容器名
+```
+
+然后在总入口的域名 `server` 块中直接反代到 `http://contacts-sync:8443`。
+这仍然只有公网 443 一个入口；Docker 的 `expose` 不会把 8443 发布到宿主机。
+
+应用中的“服务器地址”填写 `https://你的域名`，不能带 `:8443`。不要填写邀请码到
+源码或 Gradle 配置中。邀请码只在首次注册时输入。
 
 ## 6. 创建管理员
 
@@ -121,6 +156,20 @@ docker compose build --pull
 docker compose up -d
 docker compose ps
 curl --fail https://你的域名/v1/health
+```
+
+更新后同时检查 API 与两个网页入口：
+
+```bash
+curl --fail https://你的域名/v1/health
+curl --fail https://你的域名/user/
+curl --fail https://你的域名/admin/
+```
+
+确认公网 8443 已关闭：
+
+```bash
+sudo ss -ltnp | grep ':8443 ' && echo '错误：公网 8443 仍在监听' || true
 ```
 
 更新前应在本机的 `server` 目录运行：
@@ -177,7 +226,7 @@ sudo journalctl -u caddy --since today
 
 ## 10. 安全清单
 
-- GitHub 仓库保持私有
+- 公开仓库只放源码和示例；`.env`、签名证书、数据库备份及真实凭据绝不进入 Git
 - SSH 使用密钥登录，确认密钥可用后关闭密码登录
 - 禁止 root 直接远程登录，使用普通部署账号和 `sudo`
 - 只开放 `22`、`80`、`443`

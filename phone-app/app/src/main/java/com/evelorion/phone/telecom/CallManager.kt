@@ -10,6 +10,7 @@ import android.telecom.CallEndpoint
 import android.telecom.CallEndpointException
 import android.telecom.InCallService
 import android.telecom.VideoProfile
+import androidx.annotation.RequiresApi
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -52,6 +53,10 @@ object CallManager {
     var callerName by mutableStateOf("")
         private set
 
+    /** 呼叫方向。Android 10+ 读系统 direction，旧版按加入时是否振铃判断。 */
+    var outgoing by mutableStateOf(false)
+        private set
+
     /** 通话开始的时间戳，用来算时长。0 表示还没接通。 */
     var connectedAt by mutableStateOf(0L)
         private set
@@ -91,6 +96,11 @@ object CallManager {
 
     fun onCallAdded(newCall: Call) {
         call = newCall
+        outgoing = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            newCall.details?.callDirection == Call.Details.DIRECTION_OUTGOING
+        } else {
+            newCall.state != Call.STATE_RINGING
+        }
         newCall.registerCallback(callback)
         syncFrom(newCall)
         notifyListeners()
@@ -103,6 +113,7 @@ object CallManager {
             state = Call.STATE_DISCONNECTED
             number = ""
             callerName = ""
+            outgoing = false
             connectedAt = 0L
             dtmfTyped = ""
             muted = false
@@ -120,10 +131,12 @@ object CallManager {
         speakerOn = audioState.route == CallAudioState.ROUTE_SPEAKER
     }
 
+    @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
     fun onAvailableEndpointsChanged(endpoints: List<CallEndpoint>) {
         availableEndpoints = endpoints
     }
 
+    @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
     fun onEndpointChanged(endpoint: CallEndpoint) {
         currentEndpoint = endpoint
         speakerOn = endpoint.endpointType == CallEndpoint.TYPE_SPEAKER

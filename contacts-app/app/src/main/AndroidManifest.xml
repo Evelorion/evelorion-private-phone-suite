@@ -6,8 +6,13 @@
     <uses-permission android:name="android.permission.GET_ACCOUNTS" />
     <uses-permission android:name="android.permission.READ_SYNC_SETTINGS" />
     <uses-permission android:name="android.permission.CALL_PHONE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- CALL_PHONE is optional: tablets and ChromeOS devices can still use
+         the contact manager even when no telephony hardware is present. -->
+    <uses-feature android:name="android.hardware.telephony" android:required="false" />
 
     <!--
       私密联系人的两个自定义权限。

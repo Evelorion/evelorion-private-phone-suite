@@ -100,10 +100,12 @@ object Pinyin {
 
         SURNAME_OVERRIDES[c]?.let { return it }
 
-        transliterator?.let { t ->
-            val latin = t.transliterate(c.toString()).trim()
-            val first = latin.firstOrNull()?.uppercaseChar()
-            if (first != null && first in 'A'..'Z') return first
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            transliterator?.let { t ->
+                val latin = t.transliterate(c.toString()).trim()
+                val first = latin.firstOrNull()?.uppercaseChar()
+                if (first != null && first in 'A'..'Z') return first
+            }
         }
 
         return gbInitial(c)

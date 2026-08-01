@@ -3,6 +3,7 @@ package com.evelorion.phone.telecom
 import android.os.Bundle
 import android.telecom.Call
 import androidx.activity.ComponentActivity
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.DisposableEffect
@@ -38,6 +39,19 @@ class CallActivity : ComponentActivity() {
             isAppearanceLightNavigationBars = false
         }
 
+        // Android 16 的预测返回手势不再调用 Activity.onBackPressed()。
+        // 使用 AndroidX dispatcher，按返回时把仍在通话的任务移到后台。
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (CallManager.hasCall) {
+                    moveTaskToBack(true)
+                } else {
+                    isEnabled = false
+                    onBackPressedDispatcher.onBackPressed()
+                }
+            }
+        })
+
         setContent {
             PhoneM3Theme {
                 var call by remember { mutableStateOf(CallManager.call) }
@@ -60,14 +74,4 @@ class CallActivity : ComponentActivity() {
         }
     }
 
-    /**
-     * 通话中按返回不退出。
-     *
-     * 通话还在继续时把界面关掉，用户就再也找不到挂断按钮了 ——
-     * 只能去下拉通知栏。这里让返回键回到桌面而不是销毁 Activity。
-     */
-    @Deprecated("按返回回到桌面，保留通话界面")
-    override fun onBackPressed() {
-        if (CallManager.hasCall) moveTaskToBack(true) else @Suppress("DEPRECATION") super.onBackPressed()
-    }
 }

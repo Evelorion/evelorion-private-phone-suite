@@ -1,11 +1,13 @@
 package com.evelorion.phone.telecom
 
 import android.content.Intent
+import android.os.Build
 import android.telecom.Call
 import android.telecom.CallAudioState
 import android.telecom.CallEndpoint
 import android.telecom.InCallService
 import android.util.Log
+import androidx.annotation.RequiresApi
 
 /**
  * 系统把通话交给我们的入口。
@@ -33,7 +35,13 @@ class PhoneInCallService : InCallService() {
         super.onCallRemoved(call)
         if (CallAudioRecorder.isRecording) CallAudioRecorder.stop()
         // 先记录再清状态 —— 清完就拿不到号码和接通时间了
-        CallRecorder.record(applicationContext, call, CallManager.connectedAt, CallManager.callerName)
+        CallRecorder.record(
+            applicationContext,
+            call,
+            CallManager.connectedAt,
+            CallManager.callerName,
+            CallManager.outgoing,
+        )
         CallManager.onCallRemoved(call)
     }
 
@@ -42,11 +50,13 @@ class PhoneInCallService : InCallService() {
         CallManager.onAudioStateChanged(audioState)
     }
 
+    @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
     override fun onAvailableCallEndpointsChanged(availableEndpoints: List<CallEndpoint>) {
         super.onAvailableCallEndpointsChanged(availableEndpoints)
         CallManager.onAvailableEndpointsChanged(availableEndpoints)
     }
 
+    @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
     override fun onCallEndpointChanged(callEndpoint: CallEndpoint) {
         super.onCallEndpointChanged(callEndpoint)
         CallManager.onEndpointChanged(callEndpoint)

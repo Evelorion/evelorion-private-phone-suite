@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- windowLightNavigationBar was added in API 27. Keeping it out of the
+         base values directory lets Android 8.0 (API 26) inflate the theme. -->
+    <style name="Theme.Contacts" parent="Theme.Contacts.Base">
+        <item name="android:windowLightNavigationBar">true</item>
+    </style>
+</resources>

@@ -31,7 +31,13 @@ object CallRecorder {
         Thread({ runCatching { r.run() }.onFailure { Log.w(TAG, "记录通话失败", it) } }, "call-recorder")
     }
 
-    fun record(context: Context, call: Call, connectedAt: Long, resolvedName: String) {
+    fun record(
+        context: Context,
+        call: Call,
+        connectedAt: Long,
+        resolvedName: String,
+        outgoing: Boolean,
+    ) {
         val number = call.details?.handle?.schemeSpecificPart.orEmpty()
         if (number.isBlank()) return
 
@@ -42,7 +48,6 @@ object CallRecorder {
         // connectedAt 为 0 表示从未接通 —— 那就是一通未接来电
         val answered = connectedAt > 0
         val duration = if (answered) ((now - connectedAt) / 1000).toInt() else 0
-        val outgoing = call.details?.callDirection == Call.Details.DIRECTION_OUTGOING
         val kind = when {
             outgoing -> "outgoing"
             answered -> "incoming"
