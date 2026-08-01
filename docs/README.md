@@ -40,7 +40,7 @@ npm run test:web        # 25 项，浏览器端密码学交叉校验
 部署方法见 [DEPLOYMENT.md](DEPLOYMENT.md)。文档中的地址均为示例：
 
 ```
-https://contacts.example.com
+https://contacts.example.com:443
 ```
 
 ---

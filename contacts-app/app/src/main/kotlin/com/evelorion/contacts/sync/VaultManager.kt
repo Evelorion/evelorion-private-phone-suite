@@ -248,9 +248,12 @@ class VaultManager private constructor(private val context: Context) {
     fun passkeyRequestJson(baseUrl: String, mfaToken: String): String {
         session.validateUrl(baseUrl)?.let { throw IllegalArgumentException(it) }
         session.baseUrl = baseUrl
-        val response = SyncApi(baseUrl, session).getMfaOptions(mfaToken)
-        val options = response.optJSONObject("options")
-            ?: throw IllegalStateException("服务器没有返回可用的通行密钥选项")
+        // SyncApi.getMfaOptions() 已经取出了响应里的 options 对象。
+        // 这里如果再取一次 options，会永远得到 null，Credential Manager 也就根本不会启动。
+        val options = SyncApi(baseUrl, session).getMfaOptions(mfaToken)
+        if (options.optString("challenge").isBlank()) {
+            throw IllegalStateException("服务器没有返回可用的通行密钥选项")
+        }
         return options.toString()
     }
 

@@ -6,19 +6,19 @@ Android APK 必须在本机构建；VPS 只运行 `server`。
 ## 0. 只有一个公网入口
 
 ```text
-浏览器 / Android ── HTTPS 443 ── Caddy/Nginx ── sync:8443（服务器内部）
+浏览器 / Android ── https://域名:443 ── Caddy/Nginx ── sync:8443（服务器内部）
 ```
 
 必须同时满足：
 
-- 网页和 Android 只填写 `https://contacts.example.com`
-- `PUBLIC_ORIGIN=https://contacts.example.com`
+- 网页和 Android 只填写 `https://contacts.example.com:443`
+- `PUBLIC_ORIGIN=https://contacts.example.com:443`
 - 公网防火墙不开放 8443
 - 不运行任何把宿主机 `0.0.0.0:8443` 映射出去的代理容器
 - 8443 只允许 Caddy/Nginx 在本机回环或 Docker 内网访问
 
-通行密钥会把端口算进 Web Origin。只保留无端口的 443 入口，可以避免同一账号在
-两个来源之间出现注册、验证状态不一致。
+通行密钥会把端口算进 Web Origin，所以部署文件与 App 必须填写同一个完整入口。
+这里明确写出公网 TLS 端口 `:443`；内部 `:8443` 只供反向代理访问，不能混用。
 
 ## 1. 准备条件
 
@@ -76,7 +76,7 @@ SERVER_SECRET="$(openssl rand -hex 32)"
 REGISTRATION_TOKEN="$(openssl rand -hex 24)"
 sed -i "s|^SERVER_SECRET=.*|SERVER_SECRET=${SERVER_SECRET}|" .env
 sed -i "s|^REGISTRATION_TOKEN=.*|REGISTRATION_TOKEN=${REGISTRATION_TOKEN}|" .env
-sed -i "s|^PUBLIC_ORIGIN=.*|PUBLIC_ORIGIN=https://contacts.example.com|" .env
+sed -i "s|^PUBLIC_ORIGIN=.*|PUBLIC_ORIGIN=https://contacts.example.com:443|" .env
 chmod 600 .env
 unset SERVER_SECRET REGISTRATION_TOKEN
 ```
@@ -108,7 +108,7 @@ sudo systemctl reload caddy
 Caddy 会自动申请并续期 TLS 证书。验证：
 
 ```bash
-curl --fail https://你的域名/v1/health
+curl --fail https://你的域名:443/v1/health
 ```
 
 如果 443 已由另一个 Docker 总入口负责，则 `sync` 只使用 `expose: ["8443"]`，
@@ -129,7 +129,7 @@ docker network connect 你的同步网络 你的总入口容器名
 然后在总入口的域名 `server` 块中直接反代到 `http://contacts-sync:8443`。
 这仍然只有公网 443 一个入口；Docker 的 `expose` 不会把 8443 发布到宿主机。
 
-应用中的“服务器地址”填写 `https://你的域名`，不能带 `:8443`。不要填写邀请码到
+应用中的“服务器地址”填写 `https://你的域名:443`，不要把内部服务的 `:8443` 当成公网入口。不要填写邀请码到
 源码或 Gradle 配置中。邀请码只在首次注册时输入。
 
 ## 6. 创建管理员
@@ -155,15 +155,15 @@ docker compose exec -T sync rm -f /app/data/sync-before-update.db
 docker compose build --pull
 docker compose up -d
 docker compose ps
-curl --fail https://你的域名/v1/health
+curl --fail https://你的域名:443/v1/health
 ```
 
 更新后同时检查 API 与两个网页入口：
 
 ```bash
-curl --fail https://你的域名/v1/health
-curl --fail https://你的域名/user/
-curl --fail https://你的域名/admin/
+curl --fail https://你的域名:443/v1/health
+curl --fail https://你的域名:443/user/
+curl --fail https://你的域名:443/admin/
 ```
 
 确认公网 8443 已关闭：
@@ -217,7 +217,7 @@ sudo crontab -e
 cd /opt/contacts-sync
 docker compose ps
 docker compose logs --tail 100 sync
-curl --fail https://你的域名/v1/health
+curl --fail https://你的域名:443/v1/health
 sudo journalctl -u caddy --since today
 ```
 

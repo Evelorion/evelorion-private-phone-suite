@@ -108,7 +108,8 @@
 
     <!-- 加密同步 -->
     <string name="sync_intro">联系人加密后存到你自己的服务器。服务器只拿得到密文，没有主口令谁都解不开 —— 包括服务器管理员自己。</string>
-    <string name="sync_field_server">服务器地址</string>
+    <string name="sync_field_server">服务器地址（含端口）</string>
+    <string name="sync_field_server_hint">https://域名:端口</string>
     <string name="sync_field_username">用户名</string>
     <string name="sync_field_passphrase">主口令</string>
     <string name="sync_field_invite">邀请码</string>

@@ -2,7 +2,7 @@
 
 > ← 文档索引：[README.md](README.md)
 
-基址：`https://contacts.example.com`
+基址：`https://contacts.example.com:443`
 
 所有请求响应都是 JSON。二进制字段（盐、nonce、密文、包裹）一律 **base64**，
 除了 `authSecret` 和 blob 的 `hash` 用**小写十六进制**。

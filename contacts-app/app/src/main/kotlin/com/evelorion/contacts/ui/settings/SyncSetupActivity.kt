@@ -119,7 +119,10 @@ class SyncSetupActivity : BaseActivity() {
             val input = view.findViewById<EditText>(R.id.field_input)
             input.inputType = field.inputType
             when (field) {
-                Field.SERVER -> input.setText(vault.session.baseUrl.ifBlank { "https://" })
+                Field.SERVER -> {
+                    input.setText(vault.session.baseUrl.ifBlank { "https://" })
+                    input.setHint(R.string.sync_field_server_hint)
+                }
                 Field.USERNAME -> input.setText(vault.session.username)
                 else -> Unit
             }
@@ -361,7 +364,9 @@ class SyncSetupActivity : BaseActivity() {
     }
 
     private fun startPasskey(challenge: VaultManager.MfaRequired, mfaCode: String?) {
-        val server = value(Field.SERVER).trimEnd('/')
+        // 登录第一步可能已经把“域名”解析为“域名:端口”。MFA 必须继续使用同一个
+        // 完整入口，不能重新读取尚未来得及刷新的输入框，否则挑战请求会发到错误端口。
+        val server = vault.session.baseUrl.ifBlank { value(Field.SERVER).trimEnd('/') }
         val username = value(Field.USERNAME)
         val passphrase = value(Field.PASSPHRASE)
         val recovery = value(Field.RECOVERY)
@@ -648,9 +653,8 @@ class SyncSetupActivity : BaseActivity() {
     private data class ServerProbe(val baseUrl: String, val summary: String)
 
     /**
-     * Standard HTTPS is tried first. Self-hosted installations that expose the
-     * sync service on 8443 remain discoverable without baking a private host
-     * name into the app or repository.
+     * 单入口始终保存为“https://域名:端口”。没有填写端口时先补标准 HTTPS
+     * 的 :443；自建实例仍可自动探测 :8443。显式写出的端口不会被改写。
      */
     private fun resolveServer(input: String): ServerProbe {
         val client = okhttp3.OkHttpClient.Builder()
@@ -685,10 +689,21 @@ class SyncSetupActivity : BaseActivity() {
         val uri = runCatching { URI(normalized) }.getOrNull()
         if (uri?.port != -1) return listOf(normalized)
 
+        val standard = runCatching {
+            URI(
+                uri?.scheme,
+                uri?.userInfo,
+                uri?.host,
+                443,
+                uri?.path,
+                uri?.query,
+                uri?.fragment,
+            ).toASCIIString().trimEnd('/')
+        }.getOrNull()
         val fallback = runCatching {
             normalized.toHttpUrl().newBuilder().port(8443).build().toString().trimEnd('/')
         }.getOrNull()
-        return listOfNotNull(normalized, fallback).distinct()
+        return listOfNotNull(standard, fallback).distinct()
     }
 
     private fun LinearLayout.children(): List<View> = (0 until childCount).map { getChildAt(it) }

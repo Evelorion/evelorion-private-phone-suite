@@ -152,7 +152,7 @@ ssh deploy@YOUR_SERVER_IP 'cd /opt/contacts-sync && \
   sleep 5 && docker compose logs --tail 20 sync'
 
 # 确认还活着
-curl https://contacts.example.com/v1/health
+curl https://contacts.example.com:443/v1/health
 ```
 
 数据在 Docker volume 里，重建镜像不会动它。

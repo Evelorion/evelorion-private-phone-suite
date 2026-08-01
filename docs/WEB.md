@@ -178,10 +178,10 @@ server/web/
 规范网页来源：
 
 ```dotenv
-PUBLIC_ORIGIN=https://contacts.example.com
+PUBLIC_ORIGIN=https://contacts.example.com:443
 ```
 
-网页、Android 和管理员都使用 `https://contacts.example.com`，不能带 `:8443`。
+网页、Android 和管理员都使用 `https://contacts.example.com:443`；不要把内部服务的 `:8443` 当成公网入口。
 8443 只在回环地址或 Docker 内网中连接后端。完整拓扑、总反代接网与验证命令见
 [DEPLOYMENT.md](DEPLOYMENT.md)。
 
