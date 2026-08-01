@@ -28,6 +28,14 @@ try {
     } finally {
         Pop-Location
     }
+
+    Push-Location "$repoRoot\messages-app"
+    try {
+        & .\gradlew.bat :app:testDebugUnitTest :app:lintRelease :app:assembleRelease --no-daemon
+        if ($LASTEXITCODE -ne 0) { throw "Messages release build failed." }
+    } finally {
+        Pop-Location
+    }
 } finally {
     Remove-Item Env:KEYSTORE_PASSWORD -ErrorAction SilentlyContinue
     Remove-Item Env:KEY_ALIAS -ErrorAction SilentlyContinue

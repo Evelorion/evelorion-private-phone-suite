@@ -43,6 +43,7 @@ object PrivacyGuard {
     private val trustedPackagePrefixes = setOf(
         "com.evelorion.contacts",
         "com.evelorion.phone",
+        "com.evelorion.messages",
     )
 
     /**

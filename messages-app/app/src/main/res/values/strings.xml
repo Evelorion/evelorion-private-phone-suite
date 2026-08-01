@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">信息</string>
+    <string name="channel_messages">新短信</string>
+    <string name="channel_messages_desc">收到新短信时通知</string>
+    <string name="permission_read_private_contacts_label">读取私密联系人</string>
+    <string name="permission_read_private_contacts_desc">允许同一开发者签名的应用读取本机的私密联系人</string>
+    <string name="permission_vault_bridge_label">读取同步凭据</string>
+    <string name="permission_vault_bridge_desc">允许同一开发者签名的应用取得受限的同步密钥，用于加密自己的数据</string>
+</resources>
