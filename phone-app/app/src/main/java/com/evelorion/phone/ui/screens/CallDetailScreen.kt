@@ -1,5 +1,7 @@
 package com.evelorion.phone.ui.screens
 
+import android.content.Context
+import android.content.Intent
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -15,6 +17,7 @@ import androidx.compose.material.icons.filled.CallMade
 import androidx.compose.material.icons.filled.CallMissed
 import androidx.compose.material.icons.filled.CallReceived
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.Videocam
@@ -65,6 +68,7 @@ fun CallDetailScreen(state: PhoneState) {
     val scope = rememberCoroutineScope()
     var favoriteBusy by remember(person?.id) { mutableStateOf(false) }
     var confirmBlock by remember { mutableStateOf(false) }
+    var moreExpanded by remember { mutableStateOf(false) }
 
     // 历史记录要按这个人筛一遍。以前 PhoneData.history 从来没人填，
     // 详情页的历史区永远是空的 —— 而界面看不出「空」和「还没加载」的区别。
@@ -118,7 +122,28 @@ fun CallDetailScreen(state: PhoneState) {
                     tint = if (favorite) scheme.primary else scheme.onSurface,
                 )
             }
-            IconButton(onClick = {}) { Icon(Icons.Filled.MoreVert, "更多", tint = scheme.onSurface) }
+            Box {
+                IconButton(onClick = { moreExpanded = true }) {
+                    Icon(Icons.Filled.MoreVert, "更多", tint = scheme.onSurface)
+                }
+                DropdownMenu(
+                    expanded = moreExpanded,
+                    onDismissRequest = { moreExpanded = false },
+                ) {
+                    DropdownMenuItem(
+                        text = { Text(if (person == null) "添加联系人" else "已在通讯录") },
+                        leadingIcon = { Icon(Icons.Filled.PersonAdd, null) },
+                        enabled = person == null && number.isNotBlank(),
+                        onClick = {
+                            moreExpanded = false
+                            val suggestedName = name.takeIf {
+                                it.isNotBlank() && it != number && it != "未知号码"
+                            }.orEmpty()
+                            openPrivateContactEditor(context, number, suggestedName)
+                        },
+                    )
+                }
+            }
         }
 
         Column(
@@ -244,6 +269,34 @@ fun CallDetailScreen(state: PhoneState) {
         )
     }
 }
+
+/**
+ * 打开配套加密通讯录的新建页，并预填当前陌生号码。
+ *
+ * EditActivity 在通讯录侧受 signature 权限保护，第三方 App 即使知道组件名也打不开。
+ */
+private fun openPrivateContactEditor(context: Context, number: String, suggestedName: String) {
+    val opened = listOf("com.evelorion.contacts", "com.evelorion.contacts.debug").any { packageName ->
+        runCatching {
+            context.startActivity(
+                Intent(ACTION_CREATE_PRIVATE_CONTACT)
+                    .setClassName(packageName, CONTACT_EDITOR_CLASS)
+                    .putExtra(EXTRA_PHONE, number)
+                    .putExtra(EXTRA_NAME, suggestedName),
+            )
+            true
+        }.getOrDefault(false)
+    }
+    if (!opened) {
+        Toast.makeText(context, "请先安装或更新配套通讯录 App", Toast.LENGTH_LONG).show()
+    }
+}
+
+private const val ACTION_CREATE_PRIVATE_CONTACT =
+    "com.evelorion.contacts.action.CREATE_PRIVATE_CONTACT"
+private const val CONTACT_EDITOR_CLASS = "com.evelorion.contacts.ui.edit.EditActivity"
+private const val EXTRA_PHONE = "prefill_phone"
+private const val EXTRA_NAME = "prefill_name"
 
 @Composable
 private fun DetailAction(

@@ -71,9 +71,15 @@
 
         <activity
             android:name=".ui.edit.EditActivity"
-            android:exported="false"
+            android:exported="true"
+            android:permission="com.evelorion.permission.READ_PRIVATE_CONTACTS"
             android:parentActivityName=".ui.home.HomeActivity"
-            android:windowSoftInputMode="adjustResize" />
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="com.evelorion.contacts.action.CREATE_PRIVATE_CONTACT" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
 
         <activity
             android:name=".ui.settings.SettingsActivity"

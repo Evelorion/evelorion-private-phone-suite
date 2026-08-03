@@ -88,7 +88,16 @@ class EditActivity : BaseActivity() {
 
         val id = intent.getIntExtra(EXTRA_ID, 0)
         binding.title.setText(if (id == 0) R.string.edit_new_title else R.string.edit_title)
-        if (id != 0) loadExisting(id) else updateAvatar("")
+        if (id != 0) {
+            loadExisting(id)
+        } else {
+            val prefillName = intent.getStringExtra(EXTRA_PREFILL_NAME).orEmpty().take(160)
+            val prefillPhone = intent.getStringExtra(EXTRA_PREFILL_PHONE).orEmpty().take(128)
+            inputs[Field.NAME]?.setText(prefillName)
+            inputs[Field.PHONE]?.setText(prefillPhone)
+            inputs[Field.NAME]?.requestFocus()
+            updateAvatar(prefillName)
+        }
     }
 
     private fun buildFields() {
@@ -255,6 +264,10 @@ class EditActivity : BaseActivity() {
     }
 
     companion object {
+        const val ACTION_CREATE_PRIVATE_CONTACT =
+            "com.evelorion.contacts.action.CREATE_PRIVATE_CONTACT"
         const val EXTRA_ID = "contact_id"
+        const val EXTRA_PREFILL_PHONE = "prefill_phone"
+        const val EXTRA_PREFILL_NAME = "prefill_name"
     }
 }
