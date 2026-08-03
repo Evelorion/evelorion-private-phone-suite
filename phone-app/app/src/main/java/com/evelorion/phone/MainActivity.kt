@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
+import android.os.Build
 import android.telecom.TelecomManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -187,12 +188,15 @@ class MainActivity : ComponentActivity() {
     companion object {
         const val EXTRA_OPEN_DIALPAD = "com.evelorion.phone.extra.OPEN_DIALPAD"
 
-        val REQUIRED_PERMISSIONS = listOf(
-            Manifest.permission.READ_PHONE_STATE,
-            Manifest.permission.CALL_PHONE,
-            Manifest.permission.READ_CALL_LOG,
-            Manifest.permission.WRITE_CALL_LOG,
-            Manifest.permission.ANSWER_PHONE_CALLS,
-        )
+        val REQUIRED_PERMISSIONS = buildList {
+            add(Manifest.permission.READ_PHONE_STATE)
+            add(Manifest.permission.CALL_PHONE)
+            add(Manifest.permission.READ_CALL_LOG)
+            add(Manifest.permission.WRITE_CALL_LOG)
+            add(Manifest.permission.ANSWER_PHONE_CALLS)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                add(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
     }
 }

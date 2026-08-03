@@ -1,6 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">电话</string>
+    <string name="call_notification_channel">通话</string>
+    <string name="call_notification_channel_desc">来电和正在进行的通话控制</string>
+    <string name="call_notification_incoming">来电</string>
+    <string name="call_notification_dialing">正在拨号</string>
+    <string name="call_notification_connecting">正在连接</string>
+    <string name="call_notification_active">正在通话</string>
+    <string name="call_notification_holding">通话已保持</string>
+    <string name="call_notification_unknown">未知号码</string>
+    <string name="call_notification_answer">接听</string>
+    <string name="call_notification_decline">拒接</string>
+    <string name="call_notification_hang_up">挂断</string>
+    <string name="call_notification_return">返回通话</string>
 
     <!-- 自定义权限的标签和说明。系统在权限列表里会显示它们，
          写清楚一点，用户看到的不该是一串包名。 -->

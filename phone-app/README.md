@@ -31,6 +31,7 @@ app/src/main/java/com/evelorion/phone/
 │   PhoneInCallService        系统把通话交给我们的唯一入口
 │   CallManager               通话状态的唯一真相来源（进程级单例）
 │   CallActivity              来电屏/通话屏的宿主，能在锁屏上方显示
+│   CallNotificationController 通话全程常驻通知、接听/拒接/挂断动作
 │   CallerIdResolver          来电显示：号码 → 姓名（异步）
 │   CallRecorder              通话结束立刻记一条
 │   DialerRole                申请成为默认电话应用
@@ -85,6 +86,13 @@ app/src/main/java/com/evelorion/phone/
 
 `singleInstance` + 独立 `taskAffinity`：通话界面自己一个任务栈，
 用户从最近任务里划走拨号界面时不会把通话界面一起划掉。
+
+### 为什么通话界面在前台时也必须显示通知
+
+通话属于系统状态，不属于 `CallActivity`。用户可能按返回、回桌面或切到游戏，
+但电话仍在继续。因此 `PhoneInCallService` 在收到通话的第一刻就启动 `phoneCall`
+前台通知：响铃时提供接听/拒接，接通或拨出后提供挂断，点击通知主体可随时回到
+通话界面。通知只在通话真正移除后取消，不能等 Activity 退出才创建。
 
 ### 为什么自己记通话记录，而不是只扫系统的
 

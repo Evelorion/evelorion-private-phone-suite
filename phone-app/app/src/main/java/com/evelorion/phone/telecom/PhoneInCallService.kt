@@ -22,6 +22,17 @@ import androidx.annotation.RequiresApi
  */
 class PhoneInCallService : InCallService() {
 
+    private lateinit var callNotification: CallNotificationController
+    private val notificationListener: (Call?) -> Unit = { currentCall ->
+        callNotification.update(currentCall)
+    }
+
+    override fun onCreate() {
+        super.onCreate()
+        callNotification = CallNotificationController(this)
+        CallManager.addListener(notificationListener)
+    }
+
     override fun onCallAdded(call: Call) {
         super.onCallAdded(call)
         Log.i(TAG, "通话进来了：state=${call.state}")
@@ -64,6 +75,8 @@ class PhoneInCallService : InCallService() {
 
     override fun onDestroy() {
         if (CallAudioRecorder.isRecording) CallAudioRecorder.stop()
+        CallManager.removeListener(notificationListener)
+        callNotification.stop()
         CallManager.attachService(null)
         super.onDestroy()
     }

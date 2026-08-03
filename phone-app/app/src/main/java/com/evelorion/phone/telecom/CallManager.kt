@@ -150,6 +150,7 @@ object CallManager {
      */
     fun updateCallerName(name: String) {
         callerName = name
+        notifyListeners()
     }
 
     private val callback = object : Call.Callback() {
