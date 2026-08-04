@@ -23,8 +23,14 @@ import androidx.annotation.RequiresApi
 class PhoneInCallService : InCallService() {
 
     private lateinit var callNotification: CallNotificationController
+    private var callerLookupNumber = ""
     private val notificationListener: (Call?) -> Unit = { currentCall ->
         callNotification.update(currentCall)
+        if (currentCall == null) {
+            callerLookupNumber = ""
+        } else {
+            resolveCallerNameWhenNumberIsReady()
+        }
     }
 
     override fun onCreate() {
@@ -38,7 +44,6 @@ class PhoneInCallService : InCallService() {
         Log.i(TAG, "通话进来了：state=${call.state}")
         CallManager.attachService(this)
         CallManager.onCallAdded(call)
-        CallerIdResolver.resolveAsync(applicationContext, CallManager.number)
         showCallUi()
     }
 
@@ -79,6 +84,20 @@ class PhoneInCallService : InCallService() {
         callNotification.stop()
         CallManager.attachService(null)
         super.onDestroy()
+    }
+
+    /**
+     * Telecom 不保证 onCallAdded 时号码已经写进 Call.Details。
+     * 每次状态或详情变化都经过监听器，只在号码真正出现/改变时查一次。
+     */
+    private fun resolveCallerNameWhenNumberIsReady() {
+        val number = CallManager.number.trim()
+        if (number.isBlank() || number == callerLookupNumber) return
+
+        callerLookupNumber = number
+        // 同一通话的号码若被系统修正，不能继续显示旧号码查到的名字。
+        CallManager.updateCallerName("")
+        CallerIdResolver.resolveAsync(applicationContext, number)
     }
 
     /**

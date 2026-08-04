@@ -155,6 +155,12 @@ object CallManager {
 
     private val callback = object : Call.Callback() {
         override fun onStateChanged(c: Call, newState: Int) = syncFrom(c)
+
+        /**
+         * 来电刚加入时，部分基带只先给状态，号码会在随后的 Details 回调里才出现。
+         * 以前只监听状态，第一次查号拿到空串后就再也不会查，所以已存联系人也只显示号码。
+         */
+        override fun onDetailsChanged(c: Call, details: Call.Details) = syncFrom(c)
     }
 
     private fun syncFrom(c: Call) {

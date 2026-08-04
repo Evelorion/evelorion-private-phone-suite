@@ -29,7 +29,11 @@ object CallerIdResolver {
             if (hit != null && hit.name.isNotBlank()) {
                 // 回主线程写 Compose 状态
                 android.os.Handler(android.os.Looper.getMainLooper()).post {
-                    CallManager.updateCallerName(hit.name)
+                    // 查询期间可能已经挂断，或 Telecom 把号码从临时值修正成真实值。
+                    // 旧查询的结果绝不能盖到下一通电话上。
+                    if (CallManager.hasCall && CallManager.number.trim() == number.trim()) {
+                        CallManager.updateCallerName(hit.name)
+                    }
                 }
             }
         }

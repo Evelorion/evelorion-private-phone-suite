@@ -5,6 +5,7 @@ import android.content.ContentValues
 import android.database.Cursor
 import android.database.MatrixCursor
 import android.net.Uri
+import android.telephony.PhoneNumberUtils
 import android.util.Log
 import com.evelorion.contacts.data.PrivateContactStore
 import com.evelorion.contacts.helpers.PrivacyGuard
@@ -105,46 +106,64 @@ class PrivateContactsProvider : ContentProvider() {
     /**
      * 按号码查人。
      *
-     * 保险库锁着（用户还没解锁）时查不了 —— 算盲索引需要 DEK。
-     * 这时返回空，来电界面就显示号码本身，而不是报错。
+     * 先走盲索引，通常只读一行。盲索引不可用或号码格式不同（例如联系人存
+     * 138…，运营商来电给 +86 138…）时，再在本机加密联系人中做兼容匹配。
+     * 后备路径不需要云端 DEK，所以云端保险库锁定后，来电仍能显示本机姓名。
      */
-    private fun lookupByNumber(context: android.content.Context, rawNumber: String): Cursor {
+    private fun lookupByNumber(context: android.content.Context, rawNumber: String): Cursor = runCatching {
         if (rawNumber.isBlank()) return empty()
 
+        val store = PrivateContactStore(context)
+        val indexed = lookupBlindIndex(context, rawNumber, store)
+        val contact = indexed.firstOrNull() ?: store.loadAll().firstOrNull { candidate ->
+            candidate.phoneNumbers.any { phone -> samePhoneNumber(context, rawNumber, phone.value) }
+        }
+        contact?.let { cursorForContact(context, it, rawNumber) } ?: empty()
+    }.onFailure {
+        Log.w(TAG, "按号码查联系人失败", it)
+    }.getOrDefault(empty())
+
+    /** 快速路径。保险库未解锁时返回空列表，让调用方继续走本机兼容匹配。 */
+    private fun lookupBlindIndex(
+        context: android.content.Context,
+        rawNumber: String,
+        store: PrivateContactStore,
+    ): List<org.fossify.commons.models.contacts.Contact> {
         val vault = VaultManager.get(context)
-        val dek = vault.dek() ?: return empty()
-        val salt = vault.session.kdfSalt ?: return empty()
+        val dek = vault.dek() ?: return emptyList()
+        val salt = vault.session.kdfSalt ?: return emptyList()
 
         val normalized = ContactPayload.normalizeNumber(rawNumber)
-        if (normalized.isEmpty()) return empty()
+        if (normalized.isEmpty()) return emptyList()
 
         val indexKey = VaultCrypto.deriveIndexKey(dek, salt)
         return try {
             val dao = SyncDatabase.get(context).syncDao()
             val hits = dao.lookupIndex(VaultCrypto.blindIndex(indexKey, normalized))
-            if (hits.isEmpty()) return empty()
-
-            val store = PrivateContactStore(context)
-            val cursor = MatrixCursor(COLUMNS)
             hits.mapNotNull { runCatching { store.getById(it.localId) }.getOrNull() }
                 .distinctBy { it.id }
-                .forEach { c ->
-                    cursor.newRow()
-                        .add(COL_ID, c.id)
-                        .add(COL_NAME, c.getNameToDisplay())
-                        .add(COL_NUMBER, rawNumber)
-                        .add(COL_STARRED, if (c.starred == 1) 1 else 0)
-                        .add(COL_GROUPS, "")
-                }
-            cursor.setNotificationUri(context.contentResolver, PrivateContactStore.CONTACTS_URI)
-            cursor
-        } catch (e: Exception) {
-            Log.w(TAG, "按号码查联系人失败", e)
-            empty()
         } finally {
             // 索引密钥用完立刻抹掉。它留在内存里等于给了「离线枚举任意号码」的能力
             Crypto.wipe(indexKey)
         }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun samePhoneNumber(context: android.content.Context, incoming: String, stored: String): Boolean =
+        PhoneNumberUtils.compare(context, incoming, stored)
+
+    private fun cursorForContact(
+        context: android.content.Context,
+        contact: org.fossify.commons.models.contacts.Contact,
+        rawNumber: String,
+    ): Cursor = MatrixCursor(COLUMNS).apply {
+        newRow()
+            .add(COL_ID, contact.id)
+            .add(COL_NAME, contact.getNameToDisplay())
+            .add(COL_NUMBER, rawNumber)
+            .add(COL_STARRED, if (contact.starred == 1) 1 else 0)
+            .add(COL_GROUPS, "")
+        setNotificationUri(context.contentResolver, PrivateContactStore.CONTACTS_URI)
     }
 
     private fun empty() = MatrixCursor(COLUMNS)
