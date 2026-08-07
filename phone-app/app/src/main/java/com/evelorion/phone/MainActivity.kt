@@ -21,6 +21,7 @@ import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
 import com.evelorion.phone.telecom.DialerRole
 import com.evelorion.phone.telecom.CallScreeningRole
+import com.evelorion.phone.telecom.DialNumber
 import com.evelorion.phone.ui.CrashReport
 import com.evelorion.phone.ui.PhoneApp
 import com.evelorion.phone.ui.PhoneState
@@ -48,7 +49,7 @@ class MainActivity : ComponentActivity() {
 
                 LaunchedEffect(dialIntentRevision) {
                     if (dialIntentRevision > 0) {
-                        state.dial = dialIntentNumber
+                        state.dial = DialNumber.sanitizeInput(dialIntentNumber)
                         state.go(com.evelorion.phone.ui.Screen.Dialpad)
                     }
                 }

@@ -65,7 +65,10 @@ class SyncWorker(context: Context, params: WorkerParameters) : Worker(context, p
             }
             // 登录失效重试没有意义，等用户去设置页重新登录
             report.error.contains("登录已失效") -> Result.failure()
-            else -> Result.retry()
+            // 一次任务最多运行三次。持续故障等下一次周期任务或用户手动重试，
+            // 不能在后台无限唤醒网络、数据库和 Argon2/加密流程。
+            runAttemptCount < 2 -> Result.retry()
+            else -> Result.failure()
         }
     }
 }
@@ -74,6 +77,9 @@ object SyncScheduler {
 
     private const val PERIODIC_WORK = "fc_sync_periodic"
     private const val ONE_SHOT_WORK = "fc_sync_now"
+    private const val RESUME_PREFS = "sync_resume_throttle"
+    private const val LAST_RESUME_SYNC = "last_resume_sync"
+    private const val RESUME_INTERVAL_MS = 15 * 60 * 1_000L
 
     /**
      * 周期性同步。最小间隔 15 分钟是 WorkManager 的硬限制，填更小的值会被静默改成 15。
@@ -83,6 +89,7 @@ object SyncScheduler {
     fun schedulePeriodic(context: Context, intervalMinutes: Long = 60, requireUnmetered: Boolean = false) {
         val constraints = Constraints.Builder()
             .setRequiredNetworkType(if (requireUnmetered) NetworkType.UNMETERED else NetworkType.CONNECTED)
+            .setRequiresBatteryNotLow(true)
             .build()
 
         val request = PeriodicWorkRequestBuilder<SyncWorker>(
@@ -106,7 +113,10 @@ object SyncScheduler {
     fun syncNow(context: Context, trigger: String = "manual") {
         val request = OneTimeWorkRequestBuilder<SyncWorker>()
             .setConstraints(
-                Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
+                Constraints.Builder()
+                    .setRequiredNetworkType(NetworkType.CONNECTED)
+                    .setRequiresBatteryNotLow(true)
+                    .build()
             )
             .setInputData(Data.Builder().putString(SyncWorker.KEY_TRIGGER, trigger).build())
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
@@ -117,6 +127,16 @@ object SyncScheduler {
             ExistingWorkPolicy.REPLACE,
             request,
         )
+    }
+
+    /** App 频繁前后台切换时最多每 15 分钟触发一次，不重复扫描整个联系人库。 */
+    fun syncOnResumeIfStale(context: Context) {
+        val prefs = context.getSharedPreferences(RESUME_PREFS, Context.MODE_PRIVATE)
+        val now = System.currentTimeMillis()
+        val last = prefs.getLong(LAST_RESUME_SYNC, 0L)
+        if (now - last in 0 until RESUME_INTERVAL_MS) return
+        prefs.edit().putLong(LAST_RESUME_SYNC, now).apply()
+        syncNow(context, "resume")
     }
 
     fun cancelAll(context: Context) {

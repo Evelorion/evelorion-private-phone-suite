@@ -16,8 +16,8 @@ android {
         applicationId = "com.evelorion.contacts"
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
-        versionCode = 16
-        versionName = "1.0.1-preview.16"
+        versionCode = 17
+        versionName = "1.0.1-preview.17"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         ksp { arg("room.schemaLocation", "$projectDir/schemas") }

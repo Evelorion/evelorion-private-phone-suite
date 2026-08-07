@@ -46,6 +46,7 @@ class SyncEngine(private val context: Context) {
         private const val TAG = "SyncEngine"
         private const val PULL_PAGE = 500
         private const val PUSH_BATCH = 100
+        private const val MAX_PULL_PAGES = 100
 
         /** 冲突后重推的轮数上限，防止和另一台同时在推的设备无限打架。 */
         private const val MAX_CONFLICT_ROUNDS = 5
@@ -276,8 +277,12 @@ class SyncEngine(private val context: Context) {
         var since = startSeq
         var applied = 0
         var manifestChange: JSONObject? = null
+        var pages = 0
 
         while (true) {
+            if (pages++ >= MAX_PULL_PAGES) {
+                throw IOException("服务器分页超过上限，已停止同步以避免持续耗电")
+            }
             val response = api.getChanges(since, PULL_PAGE)
             val changes = response.optJSONArray("changes") ?: JSONArray()
             if (changes.length() == 0) break
@@ -292,7 +297,11 @@ class SyncEngine(private val context: Context) {
                 if (applyRemoteChange(dek, api, change)) applied++
             }
 
-            since = response.optLong("nextSince", since)
+            val nextSince = response.optLong("nextSince", since)
+            if (response.optBoolean("hasMore", false) && nextSince <= since) {
+                throw IOException("服务器分页游标没有前进，已停止同步以避免死循环")
+            }
+            since = nextSince
             dao.putState((dao.getState() ?: SyncStateEntity()).copy(lastSeq = since))
 
             if (!response.optBoolean("hasMore", false)) break

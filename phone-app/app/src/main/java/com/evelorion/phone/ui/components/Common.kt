@@ -3,7 +3,7 @@ package com.evelorion.phone.ui.components
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
@@ -44,6 +44,7 @@ fun Avatar(
 }
 
 /** 按下时圆角收缩的容器 —— Expressive 的核心形态反馈 */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun MorphingSurface(
     modifier: Modifier = Modifier,
@@ -51,6 +52,7 @@ fun MorphingSurface(
     restingCorner: Dp,
     pressedCorner: Dp = restingCorner / 2,
     onClick: (() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null,
     content: @Composable BoxScope.() -> Unit
 ) {
     val interaction = remember { MutableInteractionSource() }
@@ -67,7 +69,12 @@ fun MorphingSurface(
             .background(bg)
             .then(
                 if (onClick != null)
-                    Modifier.clickable(interaction, indication = null, onClick = onClick)
+                    Modifier.combinedClickable(
+                        interactionSource = interaction,
+                        indication = null,
+                        onLongClick = onLongClick,
+                        onClick = onClick,
+                    )
                 else Modifier
             ),
         contentAlignment = Alignment.Center,

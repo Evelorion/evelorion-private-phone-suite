@@ -8,6 +8,8 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -20,6 +22,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -30,18 +33,21 @@ import com.evelorion.phone.ui.PhoneState
 import com.evelorion.phone.ui.components.Avatar
 import com.evelorion.phone.ui.components.MorphingSurface
 import com.evelorion.phone.ui.theme.CallGreen
+import com.evelorion.phone.telecom.DialNumber
 
 private val keys = listOf(
     "1" to "", "2" to "ABC", "3" to "DEF",
     "4" to "GHI", "5" to "JKL", "6" to "MNO",
     "7" to "PQRS", "8" to "TUV", "9" to "WXYZ",
-    "＊" to "", "0" to "+", "＃" to ""
+    "*" to "", "0" to "+", "#" to ""
 )
 
 /** 拨号键盘：输入时实时匹配联系人 */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun DialpadScreen(state: PhoneState) {
     val scheme = MaterialTheme.colorScheme
+    val clipboard = LocalClipboardManager.current
     val digits = state.dial.filter { it.isDigit() }
     val match: Person? = if (digits.length >= 2)
         PhoneData.people.firstOrNull { it.number.replace(" ", "").contains(digits) } else null
@@ -66,11 +72,26 @@ fun DialpadScreen(state: PhoneState) {
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                state.dial, color = scheme.onSurface,
-                fontSize = fontSize.sp, letterSpacing = 2.sp,
-                modifier = Modifier.heightIn(min = 56.dp)
-            )
+            Box(
+                Modifier.fillMaxWidth().heightIn(min = 64.dp)
+                    .combinedClickable(
+                        onClick = {},
+                        onLongClick = {
+                            clipboard.getText()?.text?.let {
+                                state.dial = DialNumber.sanitizeInput(it)
+                            }
+                        },
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    state.dial.ifBlank { "长按这里粘贴号码" },
+                    color = if (state.dial.isBlank()) scheme.onSurfaceVariant else scheme.onSurface,
+                    fontSize = if (state.dial.isBlank()) 15.sp else fontSize.sp,
+                    letterSpacing = if (state.dial.isBlank()) 0.sp else 2.sp,
+                    textAlign = TextAlign.Center,
+                )
+            }
             AnimatedVisibility(
                 visible = match != null,
                 enter = fadeIn() + scaleIn(Motion.springy(), initialScale = 0.9f),
@@ -114,7 +135,12 @@ fun DialpadScreen(state: PhoneState) {
                             color = scheme.surfaceContainer,
                             restingCorner = 34.dp,
                             pressedCorner = 22.dp,
-                            onClick = { if (state.dial.length < 13) state.dial += digit }
+                            onClick = {
+                                state.dial = DialNumber.sanitizeInput(state.dial + digit)
+                            },
+                            onLongClick = if (digit == "0") ({
+                                state.dial = DialNumber.sanitizeInput("+" + state.dial.removePrefix("+"))
+                            }) else null,
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(digit, color = scheme.onSurface, fontSize = 28.sp)

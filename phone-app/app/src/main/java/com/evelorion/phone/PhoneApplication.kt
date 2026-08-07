@@ -20,12 +20,9 @@ class PhoneApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        // 排周期同步。
-        //
-        // 通讯录那边踩过：调度器写好了但**没有任何地方调用**，
-        // 于是从来没自动同步过，用户只能手点，还以为是坏的。
-        // 所以这一行必须在这里，而且要有测试能看见它。
-        runCatching { CallSyncScheduler.schedulePeriodic(this) }
+        // 通话记录只在“通话结束写入新记录”、删除记录或用户手动操作时同步。
+        // 升级时顺手取消旧版本留下的周期任务，避免无新记录也唤醒网络和加密数据库。
+        runCatching { CallSyncScheduler.disablePeriodic(this) }
     }
 
     override fun attachBaseContext(base: android.content.Context) {

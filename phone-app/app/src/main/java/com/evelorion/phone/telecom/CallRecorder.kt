@@ -79,7 +79,8 @@ object CallRecorder {
                 endedAt = now,
                 durationSeconds = duration,
             )
-            // 顺手排一次同步。失败也无所谓，周期任务会补上。
+            // 只有成功写入新记录后才同步；没有新通话时电话 App 不做周期同步。
+            // 临时失败等下一通记录或用户手动同步时再补，不在后台无限重试。
             runCatching { CallSyncScheduler.syncNow(context) }
         }
     }

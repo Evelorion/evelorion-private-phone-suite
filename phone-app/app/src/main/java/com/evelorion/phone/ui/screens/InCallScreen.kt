@@ -40,7 +40,10 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.Icon
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -83,9 +86,12 @@ fun InCallScreen() {
     val person = CallManager.peer()
     var seconds by remember { mutableIntStateOf(0) }
     var padVisible by remember { mutableStateOf(false) }
+    var audioRouteDialogVisible by remember { mutableStateOf(false) }
     val recording = CallAudioRecorder.isRecording
     val muted = CallManager.muted
     val speaker = CallManager.speakerOn
+    val audioRoutes = CallManager.audioRoutes
+    val activeAudioRouteId = CallManager.activeAudioRouteId
     val onHold = CallManager.onHold
 
     fun unavailable(message: String) {
@@ -118,7 +124,8 @@ fun InCallScreen() {
         while (true) {
             val start = CallManager.connectedAt
             seconds = if (start == 0L) 0 else ((System.currentTimeMillis() - start) / 1_000).toInt()
-            delay(500)
+            // 界面只显示到秒，1 秒刷新一次即可；500 ms 只会多唤醒一倍，没有可见收益。
+            delay(1_000)
         }
     }
 
@@ -127,6 +134,37 @@ fun InCallScreen() {
         onHold -> "通话已保持"
         CallManager.connectedAt == 0L -> "正在连接…"
         else -> "通话中  $timer"
+    }
+
+    if (audioRouteDialogVisible) {
+        AlertDialog(
+            onDismissRequest = { audioRouteDialogVisible = false },
+            title = { Text("选择通话音频") },
+            text = {
+                Column {
+                    audioRoutes.forEach { route ->
+                        Row(
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).clickable {
+                                if (!CallManager.selectAudioRoute(route.id)) {
+                                    unavailable("这个音频设备暂时不可用")
+                                }
+                                audioRouteDialogVisible = false
+                            }.padding(vertical = 8.dp, horizontal = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            RadioButton(
+                                selected = route.id == activeAudioRouteId,
+                                onClick = null,
+                            )
+                            Text(route.label, Modifier.padding(start = 8.dp), maxLines = 2)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { audioRouteDialogVisible = false }) { Text("关闭") }
+            },
+        )
     }
 
     Box(Modifier.fillMaxSize()) {
@@ -205,8 +243,20 @@ fun InCallScreen() {
                     if (!CallManager.toggleMute()) unavailable("静音不可用：请先把本应用设为默认电话应用")
                 },
                 CallControl(Icons.Filled.Dialpad, "键盘", padVisible) { padVisible = !padVisible },
-                CallControl(Icons.Filled.VolumeUp, if (speaker) "关闭免提" else "免提", speaker) {
-                    if (!CallManager.toggleSpeaker()) unavailable("无法切换音频：系统尚未连接通话服务")
+                CallControl(
+                    Icons.Filled.VolumeUp,
+                    when {
+                        speaker -> "扬声器"
+                        audioRoutes.firstOrNull { it.id == activeAudioRouteId }?.isHeadset == true -> "耳机"
+                        else -> "音频"
+                    },
+                    speaker || audioRoutes.firstOrNull { it.id == activeAudioRouteId }?.isHeadset == true,
+                ) {
+                    if (audioRoutes.isEmpty()) {
+                        unavailable("系统还没有提供可用的通话音频设备")
+                    } else {
+                        audioRouteDialogVisible = true
+                    }
                 },
                 CallControl(Icons.Filled.AddIcCall, "添加通话", false) {
                     if (!CallManager.holdForAdditionalCall()) {

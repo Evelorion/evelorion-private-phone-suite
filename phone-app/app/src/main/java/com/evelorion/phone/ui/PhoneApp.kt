@@ -35,6 +35,7 @@ import com.evelorion.phone.bridge.ContactsBridge
 import com.evelorion.phone.data.PhoneData
 import com.evelorion.phone.ui.screens.*
 import com.evelorion.phone.ui.screens.SettingsStatus
+import com.evelorion.phone.telecom.DialNumber
 
 /**
  * 主界面里的页面。
@@ -81,7 +82,7 @@ class PhoneState {
         private set
 
     fun requestCall(number: String) {
-        pendingNumber = number
+        pendingNumber = DialNumber.forDialing(number)
     }
 
     /**

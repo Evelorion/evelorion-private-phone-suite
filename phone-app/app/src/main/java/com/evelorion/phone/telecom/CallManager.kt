@@ -35,6 +35,13 @@ import androidx.compose.runtime.mutableStateListOf
  */
 object CallManager {
 
+    data class AudioRouteOption(
+        val id: String,
+        val label: String,
+        val isSpeaker: Boolean = false,
+        val isHeadset: Boolean = false,
+    )
+
     /** Telecom 交给我们的当前通话。null 表示现在没有通话。 */
     var call: Call? = null
         private set
@@ -66,6 +73,17 @@ object CallManager {
 
     var speakerOn by mutableStateOf(false)
         private set
+
+    /** 系统当前实际提供的听筒、扬声器、有线耳机和蓝牙耳机。 */
+    var audioRoutes by mutableStateOf<List<AudioRouteOption>>(emptyList())
+        private set
+
+    var activeAudioRouteId by mutableStateOf("")
+        private set
+
+    val activeAudioRouteLabel: String
+        get() = audioRoutes.firstOrNull { it.id == activeAudioRouteId }?.label
+            ?: if (speakerOn) "扬声器" else "听筒"
 
     var onHold by mutableStateOf(false)
         private set
@@ -118,6 +136,8 @@ object CallManager {
             dtmfTyped = ""
             muted = false
             speakerOn = false
+            audioRoutes = emptyList()
+            activeAudioRouteId = ""
             onHold = false
             canHold = false
             currentEndpoint = null
@@ -129,17 +149,31 @@ object CallManager {
     fun onAudioStateChanged(audioState: CallAudioState) {
         muted = audioState.isMuted
         speakerOn = audioState.route == CallAudioState.ROUTE_SPEAKER
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            audioRoutes = legacyAudioRoutes(audioState.supportedRouteMask)
+            activeAudioRouteId = legacyRouteId(audioState.route)
+        }
     }
 
     @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
     fun onAvailableEndpointsChanged(endpoints: List<CallEndpoint>) {
         availableEndpoints = endpoints
+        audioRoutes = endpoints.map { endpoint ->
+            AudioRouteOption(
+                id = endpoint.identifier.toString(),
+                label = endpointLabel(endpoint),
+                isSpeaker = endpoint.endpointType == CallEndpoint.TYPE_SPEAKER,
+                isHeadset = endpoint.endpointType == CallEndpoint.TYPE_BLUETOOTH ||
+                    endpoint.endpointType == CallEndpoint.TYPE_WIRED_HEADSET,
+            )
+        }
     }
 
     @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
     fun onEndpointChanged(endpoint: CallEndpoint) {
         currentEndpoint = endpoint
         speakerOn = endpoint.endpointType == CallEndpoint.TYPE_SPEAKER
+        activeAudioRouteId = endpoint.identifier.toString()
     }
 
     /**
@@ -209,35 +243,80 @@ object CallManager {
     }
 
     fun toggleSpeaker(): Boolean {
-        val activeService = service ?: return false
         val enableSpeaker = !speakerOn
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            val type = if (enableSpeaker) CallEndpoint.TYPE_SPEAKER else CallEndpoint.TYPE_EARPIECE
-            val endpoint = availableEndpoints.firstOrNull { it.endpointType == type }
-            if (endpoint != null) {
-                activeService.requestCallEndpointChange(
-                    endpoint,
-                    activeService.mainExecutor,
-                    object : OutcomeReceiver<Void?, CallEndpointException> {
-                        override fun onResult(result: Void?) = Unit
-                        override fun onError(error: CallEndpointException) {
-                            // 系统回调才是最终状态；请求失败时恢复实际端点。
-                            speakerOn = currentEndpoint?.endpointType == CallEndpoint.TYPE_SPEAKER
-                        }
-                    },
-                )
-                speakerOn = enableSpeaker
-                return true
+            val preferred = if (enableSpeaker) {
+                availableEndpoints.firstOrNull { it.endpointType == CallEndpoint.TYPE_SPEAKER }
+            } else {
+                // 关闭免提时优先回到已经连接的耳机，不能硬切听筒。
+                availableEndpoints.firstOrNull { it.endpointType == CallEndpoint.TYPE_BLUETOOTH }
+                    ?: availableEndpoints.firstOrNull { it.endpointType == CallEndpoint.TYPE_WIRED_HEADSET }
+                    ?: availableEndpoints.firstOrNull { it.endpointType == CallEndpoint.TYPE_EARPIECE }
             }
+            return preferred?.let { selectAudioRoute(it.identifier.toString()) } ?: false
         }
 
+        val route = if (enableSpeaker) {
+            CallAudioState.ROUTE_SPEAKER
+        } else {
+            audioRoutes.firstOrNull { it.isHeadset }?.id?.removePrefix(LEGACY_PREFIX)?.toIntOrNull()
+                ?: CallAudioState.ROUTE_EARPIECE
+        }
+        return selectAudioRoute(legacyRouteId(route))
+    }
+
+    /** 选择用户在通话界面点中的真实系统音频端点。 */
+    fun selectAudioRoute(routeId: String): Boolean {
+        val activeService = service ?: return false
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            val endpoint = availableEndpoints.firstOrNull { it.identifier.toString() == routeId }
+                ?: return false
+            activeService.requestCallEndpointChange(
+                endpoint,
+                activeService.mainExecutor,
+                object : OutcomeReceiver<Void?, CallEndpointException> {
+                    override fun onResult(result: Void?) = Unit
+                    override fun onError(error: CallEndpointException) {
+                        activeAudioRouteId = currentEndpoint?.identifier?.toString().orEmpty()
+                        speakerOn = currentEndpoint?.endpointType == CallEndpoint.TYPE_SPEAKER
+                    }
+                },
+            )
+            activeAudioRouteId = routeId
+            speakerOn = endpoint.endpointType == CallEndpoint.TYPE_SPEAKER
+            return true
+        }
+
+        val route = routeId.removePrefix(LEGACY_PREFIX).toIntOrNull() ?: return false
         @Suppress("DEPRECATION")
-        activeService.setAudioRoute(
-            if (enableSpeaker) CallAudioState.ROUTE_SPEAKER else CallAudioState.ROUTE_EARPIECE
-        )
-        speakerOn = enableSpeaker
+        activeService.setAudioRoute(route)
+        activeAudioRouteId = routeId
+        speakerOn = route == CallAudioState.ROUTE_SPEAKER
         return true
     }
+
+    @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
+    private fun endpointLabel(endpoint: CallEndpoint): String = when (endpoint.endpointType) {
+        CallEndpoint.TYPE_BLUETOOTH -> endpoint.endpointName.toString().ifBlank { "蓝牙耳机" }
+        CallEndpoint.TYPE_WIRED_HEADSET -> "有线耳机"
+        CallEndpoint.TYPE_SPEAKER -> "扬声器"
+        CallEndpoint.TYPE_EARPIECE -> "听筒"
+        CallEndpoint.TYPE_STREAMING -> "其它设备"
+        else -> endpoint.endpointName.toString().ifBlank { "其它音频设备" }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun legacyAudioRoutes(mask: Int): List<AudioRouteOption> = buildList {
+        fun addIf(route: Int, label: String, speaker: Boolean = false, headset: Boolean = false) {
+            if (mask and route != 0) add(AudioRouteOption(legacyRouteId(route), label, speaker, headset))
+        }
+        addIf(CallAudioState.ROUTE_EARPIECE, "听筒")
+        addIf(CallAudioState.ROUTE_WIRED_HEADSET, "有线耳机", headset = true)
+        addIf(CallAudioState.ROUTE_BLUETOOTH, "蓝牙耳机", headset = true)
+        addIf(CallAudioState.ROUTE_SPEAKER, "扬声器", speaker = true)
+    }
+
+    private fun legacyRouteId(route: Int) = "$LEGACY_PREFIX$route"
 
     fun toggleHold(): Boolean {
         val currentCall = call ?: return false
@@ -275,4 +354,6 @@ object CallManager {
         // 复制一份再遍历：回调里可能会 removeListener，直接遍历会 ConcurrentModification
         listeners.toList().forEach { it(call) }
     }
+
+    private const val LEGACY_PREFIX = "legacy:"
 }

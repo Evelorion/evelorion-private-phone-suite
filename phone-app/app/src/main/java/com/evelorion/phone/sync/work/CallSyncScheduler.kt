@@ -2,15 +2,15 @@ package com.evelorion.phone.sync.work
 
 import android.content.Context
 import androidx.work.Constraints
-import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
+import androidx.work.BackoffPolicy
 import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.Worker
 import androidx.work.WorkerParameters
 import com.evelorion.phone.sync.engine.CallSyncEngine
+import com.evelorion.phone.bridge.VaultBridge
 import java.util.concurrent.TimeUnit
 
 /**
@@ -18,28 +18,35 @@ import java.util.concurrent.TimeUnit
  *
  * 通讯录那边踩过的坑：SyncScheduler 写好了但**没有任何地方调用它**，
  * 所以从来没有自动同步过，用户只能手点，还以为是坏了。
- * 这里把触发点写清楚，一共两个：
+ * 这里把触发点写清楚，一共三个：
  *
  *   · 每通电话结束后（CallRecorder 里）—— 刚产生的记录立刻上去
- *   · 每 6 小时一次的周期任务 —— 兜底，捡起前面失败的
+ *   · 用户删除记录后 —— 把删除墓碑推上去
+ *   · 用户在设置里手动点同步
  *
- * 周期不设更短：通话记录不是高频数据，而后台唤醒是要耗电的。
+ * 没有新记录时不排周期任务，避免无意义的后台唤醒、发热和耗电。
  */
 object CallSyncScheduler {
 
     private const val PERIODIC = "calls-sync-periodic"
     private const val ONESHOT = "calls-sync-now"
+    private const val MIGRATION_PREFS = "call_sync_migrations"
+    private const val PERIODIC_DISABLED = "periodic_disabled_v1"
 
-    fun schedulePeriodic(context: Context) {
-        WorkManager.getInstance(context).enqueueUniquePeriodicWork(
-            PERIODIC,
-            ExistingPeriodicWorkPolicy.UPDATE,
-            PeriodicWorkRequestBuilder<CallSyncWorker>(6, TimeUnit.HOURS)
-                .setConstraints(
-                    Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
-                )
-                .build(),
-        )
+    fun disablePeriodic(context: Context) {
+        val app = context.applicationContext
+        val prefs = app.getSharedPreferences(MIGRATION_PREFS, Context.MODE_PRIVATE)
+        if (prefs.getBoolean(PERIODIC_DISABLED, false)) return
+
+        // WorkManager 初始化是异步的。只发 cancel 不等待时，旧任务可能要等下一次
+        // enqueue 才真正从 JobScheduler 消失；放后台线程等完成，绝不阻塞 App 启动。
+        Thread({
+            runCatching {
+                WorkManager.getInstance(app).cancelUniqueWork(PERIODIC)
+                    .result.get(30, TimeUnit.SECONDS)
+                prefs.edit().putBoolean(PERIODIC_DISABLED, true).apply()
+            }
+        }, "disable-call-periodic").apply { isDaemon = true }.start()
     }
 
     fun syncNow(context: Context) {
@@ -49,8 +56,12 @@ object CallSyncScheduler {
             ExistingWorkPolicy.REPLACE,
             OneTimeWorkRequestBuilder<CallSyncWorker>()
                 .setConstraints(
-                    Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
+                    Constraints.Builder()
+                        .setRequiredNetworkType(NetworkType.CONNECTED)
+                        .setRequiresBatteryNotLow(true)
+                        .build()
                 )
+                .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 5, TimeUnit.MINUTES)
                 .build(),
         )
     }
@@ -58,9 +69,14 @@ object CallSyncScheduler {
 
 class CallSyncWorker(context: Context, params: WorkerParameters) : Worker(context, params) {
     override fun doWork(): Result {
+        // 没配置或保险库锁着不是错误，继续重试只会反复唤醒两个 App。
+        if (!VaultBridge.session(applicationContext).usable) return Result.success()
+
         val report = CallSyncEngine(applicationContext).sync()
-        // 失败就重试。保险库锁着这种情况重试也没用，但 WorkManager 的退避
-        // 会越等越久，不至于空转耗电。
-        return if (report.ok) Result.success() else Result.retry()
+        if (report.ok) return Result.success()
+
+        // 网络临时失败最多再试三次；账号/密钥/服务器配置错误等待用户处理。
+        val transient = report.error.contains("网络不可用") || report.error.contains("服务器返回错误")
+        return if (transient && runAttemptCount < 2) Result.retry() else Result.failure()
     }
 }

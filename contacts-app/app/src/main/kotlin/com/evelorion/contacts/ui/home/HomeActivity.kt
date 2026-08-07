@@ -125,15 +125,15 @@ class HomeActivity : BaseActivity() {
         super.onResume()
         load()
 
-        // 回到前台顺手同步一次。
+        // 回到前台时检查是否需要同步；15 分钟内已经触发过就跳过。
         //
         // 走 WorkManager 而不是直接开线程 —— 它自带网络约束和退避重试，
-        // 而且 REPLACE 策略保证用户来回切 App 不会堆出一串任务。
+        // 而且节流 + REPLACE 保证用户来回切 App 不会反复扫描或堆出一串任务。
         //
         // 同步完成后 SyncWorker 会发广播，下面的 receiver 收到就刷新列表，
         // 用户不用手动下拉。
         runCatching {
-            if (VaultManager.get(this).isConfigured) SyncScheduler.syncNow(this, "resume")
+            if (VaultManager.get(this).isConfigured) SyncScheduler.syncOnResumeIfStale(this)
         }
     }
 
