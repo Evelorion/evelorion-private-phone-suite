@@ -22,19 +22,31 @@ import androidx.core.content.ContextCompat
 import com.evelorion.phone.telecom.DialerRole
 import com.evelorion.phone.telecom.CallScreeningRole
 import com.evelorion.phone.telecom.DialNumber
+import com.evelorion.phone.telecom.CallManager
 import com.evelorion.phone.ui.CrashReport
 import com.evelorion.phone.ui.PhoneApp
 import com.evelorion.phone.ui.PhoneState
 import com.evelorion.phone.ui.theme.PhoneM3Theme
+import java.lang.ref.WeakReference
 
 class MainActivity : ComponentActivity() {
 
     private var dialIntentRevision by mutableIntStateOf(0)
     private var dialIntentNumber = ""
 
+    /**
+     * 从拨号页发起通话后，通话界面会进入独立任务。用户随后切到游戏时，
+     * 不需要在后台同时保留拨号主页和通话页两套 Compose 界面。
+     */
+    override fun onStop() {
+        super.onStop()
+        if (!isChangingConfigurations && CallManager.hasCall) finish()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        currentInstance = WeakReference(this)
 
         // 上次崩着退出的，先把堆栈摆出来。继续初始化多半会再崩一次，
         // 那时用户又是一片空白，什么信息都拿不到。
@@ -132,6 +144,11 @@ class MainActivity : ComponentActivity() {
         handleDialIntent(intent)
     }
 
+    override fun onDestroy() {
+        if (currentInstance?.get() === this) currentInstance = null
+        super.onDestroy()
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
@@ -187,7 +204,16 @@ class MainActivity : ComponentActivity() {
     }
 
     companion object {
+        private var currentInstance: WeakReference<MainActivity>? = null
+
         const val EXTRA_OPEN_DIALPAD = "com.evelorion.phone.extra.OPEN_DIALPAD"
+
+        /** 通话接入时释放可能早已停在后台的拨号主页。 */
+        internal fun finishForActiveCall() {
+            currentInstance?.get()?.runOnUiThread {
+                currentInstance?.get()?.takeUnless { it.isFinishing }?.finish()
+            }
+        }
 
         val REQUIRED_PERMISSIONS = buildList {
             add(Manifest.permission.READ_PHONE_STATE)

@@ -110,9 +110,10 @@ internal class CallNotificationController(
             .setVisibility(Notification.VISIBILITY_PUBLIC)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
-            .setShowWhen(CallManager.connectedAt > 0L)
-            .setWhen(CallManager.connectedAt.takeIf { it > 0L } ?: System.currentTimeMillis())
-            .setUsesChronometer(CallManager.connectedAt > 0L)
+            // 通话时长已在通话页显示。通知栏秒表会让 SystemUI 即使在游戏前台
+            // 也每秒刷新；保留静态通知和挂断入口即可。
+            .setShowWhen(false)
+            .setUsesChronometer(false)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             val person = Person.Builder()

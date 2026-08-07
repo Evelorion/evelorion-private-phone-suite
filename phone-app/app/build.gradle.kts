@@ -18,8 +18,8 @@ android {
         applicationId = "com.evelorion.phone"
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
-        versionCode = 19
-        versionName = "1.0.1-preview.19"
+        versionCode = 20
+        versionName = "1.0.1-preview.20"
 
         ksp { arg("room.schemaLocation", "$projectDir/schemas") }
 

@@ -8,6 +8,7 @@ import android.telecom.CallEndpoint
 import android.telecom.InCallService
 import android.util.Log
 import androidx.annotation.RequiresApi
+import com.evelorion.phone.MainActivity
 
 /**
  * 系统把通话交给我们的入口。
@@ -44,6 +45,7 @@ class PhoneInCallService : InCallService() {
         Log.i(TAG, "通话进来了：state=${call.state}")
         CallManager.attachService(this)
         CallManager.onCallAdded(call)
+        MainActivity.finishForActiveCall()
         showCallUi()
     }
 

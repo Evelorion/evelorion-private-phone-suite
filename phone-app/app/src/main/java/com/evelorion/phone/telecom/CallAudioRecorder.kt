@@ -79,6 +79,11 @@ object CallAudioRecorder {
         val target = output
         val context = appContext
 
+        // maxAmplitude 第一次读取会返回从录制开始至今的峰值，不需要界面每 250 ms
+        // 轮询一次。这样切到游戏后录音仍可继续，但不会额外制造定时唤醒。
+        val finalAmplitude = runCatching { activeRecorder.maxAmplitude }.getOrDefault(0)
+        if (finalAmplitude > peakAmplitude) peakAmplitude = finalAmplitude
+
         recorder = null
         output = null
         appContext = null
@@ -123,8 +128,11 @@ object CallAudioRecorder {
             mediaRecorder.setAudioSource(audioSource)
             mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
             mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-            mediaRecorder.setAudioSamplingRate(44_100)
-            mediaRecorder.setAudioEncodingBitRate(128_000)
+            // 语音不需要音乐级 44.1 kHz/128 kbps；单声道 16 kHz 可显著降低
+            // 通话录音与游戏并行时的编码负担和文件大小。
+            mediaRecorder.setAudioChannels(1)
+            mediaRecorder.setAudioSamplingRate(16_000)
+            mediaRecorder.setAudioEncodingBitRate(32_000)
             mediaRecorder.setOutputFile(fileDescriptor)
             mediaRecorder.prepare()
             mediaRecorder.start()

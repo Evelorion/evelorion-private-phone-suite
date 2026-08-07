@@ -65,6 +65,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import com.evelorion.phone.R
 import com.evelorion.phone.MainActivity
 import com.evelorion.phone.telecom.CallAudioRecorder
@@ -83,6 +86,7 @@ import kotlinx.coroutines.delay
 @Composable
 fun InCallScreen() {
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     val person = CallManager.peer()
     var seconds by remember { mutableIntStateOf(0) }
     var padVisible by remember { mutableStateOf(false) }
@@ -113,19 +117,14 @@ fun InCallScreen() {
         else Toast.makeText(context, "需要麦克风权限才能录音", Toast.LENGTH_LONG).show()
     }
 
-    LaunchedEffect(recording) {
-        while (CallAudioRecorder.isRecording) {
-            delay(250)
-            CallAudioRecorder.sampleAmplitude()
-        }
-    }
-
-    LaunchedEffect(CallManager.connectedAt) {
-        while (true) {
-            val start = CallManager.connectedAt
-            seconds = if (start == 0L) 0 else ((System.currentTimeMillis() - start) / 1_000).toInt()
-            // 界面只显示到秒，1 秒刷新一次即可；500 ms 只会多唤醒一倍，没有可见收益。
-            delay(1_000)
+    LaunchedEffect(lifecycleOwner, CallManager.connectedAt) {
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (true) {
+                val start = CallManager.connectedAt
+                seconds = if (start == 0L) 0 else ((System.currentTimeMillis() - start) / 1_000).toInt()
+                // 只有通话页可见时才更新；切到游戏后不再产生 Compose 定时唤醒。
+                delay(1_000)
+            }
         }
     }
 

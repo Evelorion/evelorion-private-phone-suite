@@ -31,6 +31,17 @@ import com.evelorion.phone.ui.theme.PhoneM3Theme
  */
 class CallActivity : ComponentActivity() {
 
+    /**
+     * 游戏或其他应用进入前台后，不在后台保留整套 Compose 通话页面和背景图。
+     * 通话本身由 InCallService 持有，常驻通知仍可挂断并重新打开本页面。
+     */
+    override fun onStop() {
+        super.onStop()
+        if (!isChangingConfigurations && CallManager.hasCall && !CallManager.isRinging) {
+            finishAndRemoveTask()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
