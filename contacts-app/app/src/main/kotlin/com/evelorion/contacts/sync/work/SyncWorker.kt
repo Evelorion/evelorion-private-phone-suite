@@ -1,15 +1,14 @@
 package com.evelorion.contacts.sync.work
 
 import android.content.Context
+import android.os.Process
 import android.util.Log
 import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.Data
-import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.Worker
 import androidx.work.WorkerParameters
@@ -36,6 +35,18 @@ class SyncWorker(context: Context, params: WorkerParameters) : Worker(context, p
     }
 
     override fun doWork(): Result {
+        // WorkManager 的通用线程池不保证低优先级。联系人同步包含数据库、网络和
+        // 加解密，明确降到后台优先级，避免偶发同步与前台游戏争抢 CPU。
+        Process.setThreadPriority(Process.THREAD_PRIORITY_BACKGROUND)
+
+        // 旧版周期任务没有 trigger。即使升级与 JobScheduler 启动发生竞态，
+        // 也必须在接触保险库、数据库和网络之前直接结束。
+        val trigger = inputData.getString(KEY_TRIGGER)
+        if (trigger.isNullOrBlank()) {
+            Log.i(TAG, "跳过旧版周期同步")
+            return Result.success()
+        }
+
         val vault = VaultManager.get(applicationContext)
         if (!vault.isConfigured) return Result.success()
 
@@ -65,7 +76,7 @@ class SyncWorker(context: Context, params: WorkerParameters) : Worker(context, p
             }
             // 登录失效重试没有意义，等用户去设置页重新登录
             report.error.contains("登录已失效") -> Result.failure()
-            // 一次任务最多运行三次。持续故障等下一次周期任务或用户手动重试，
+            // 一次任务最多运行三次。持续故障等下次联系人变更或用户手动重试，
             // 不能在后台无限唤醒网络、数据库和 Argon2/加密流程。
             runAttemptCount < 2 -> Result.retry()
             else -> Result.failure()
@@ -77,33 +88,12 @@ object SyncScheduler {
 
     private const val PERIODIC_WORK = "fc_sync_periodic"
     private const val ONE_SHOT_WORK = "fc_sync_now"
-    private const val RESUME_PREFS = "sync_resume_throttle"
-    private const val LAST_RESUME_SYNC = "last_resume_sync"
-    private const val RESUME_INTERVAL_MS = 15 * 60 * 1_000L
-
     /**
-     * 周期性同步。最小间隔 15 分钟是 WorkManager 的硬限制，填更小的值会被静默改成 15。
-     * 默认要求不计费网络 —— 联系人数据量不大，但用户不该为后台同步付流量费，
-     * 想改的话设置页有开关。
+     * 新版本不再自动同步。升级安装后必须显式取消旧版本留下的周期任务，
+     * 否则 JobScheduler 仍可能每小时在游戏前台启动数据库、网络和加密工作。
      */
-    fun schedulePeriodic(context: Context, intervalMinutes: Long = 60, requireUnmetered: Boolean = false) {
-        val constraints = Constraints.Builder()
-            .setRequiredNetworkType(if (requireUnmetered) NetworkType.UNMETERED else NetworkType.CONNECTED)
-            .setRequiresBatteryNotLow(true)
-            .build()
-
-        val request = PeriodicWorkRequestBuilder<SyncWorker>(
-            intervalMinutes.coerceAtLeast(15), TimeUnit.MINUTES
-        )
-            .setConstraints(constraints)
-            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 5, TimeUnit.MINUTES)
-            .build()
-
-        WorkManager.getInstance(context).enqueueUniquePeriodicWork(
-            PERIODIC_WORK,
-            ExistingPeriodicWorkPolicy.UPDATE,
-            request,
-        )
+    fun disablePeriodic(context: Context) {
+        WorkManager.getInstance(context).cancelUniqueWork(PERIODIC_WORK)
     }
 
     /**
@@ -127,16 +117,6 @@ object SyncScheduler {
             ExistingWorkPolicy.REPLACE,
             request,
         )
-    }
-
-    /** App 频繁前后台切换时最多每 15 分钟触发一次，不重复扫描整个联系人库。 */
-    fun syncOnResumeIfStale(context: Context) {
-        val prefs = context.getSharedPreferences(RESUME_PREFS, Context.MODE_PRIVATE)
-        val now = System.currentTimeMillis()
-        val last = prefs.getLong(LAST_RESUME_SYNC, 0L)
-        if (now - last in 0 until RESUME_INTERVAL_MS) return
-        prefs.edit().putLong(LAST_RESUME_SYNC, now).apply()
-        syncNow(context, "resume")
     }
 
     fun cancelAll(context: Context) {

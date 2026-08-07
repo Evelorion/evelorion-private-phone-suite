@@ -272,8 +272,7 @@ class SyncSetupActivity : BaseActivity() {
                     // 注册返回恢复码，必须让用户当场抄下来 —— 服务器上没有第二份
                     result?.recoveryCode?.let { showRecovery(it) }
                     render()
-                    // 配好账号之后才排周期任务 —— 没登录时排是白排
-                    SyncScheduler.schedulePeriodic(this)
+                    SyncScheduler.disablePeriodic(this)
                     runSync()
                 }
             }.onFailure { e ->
@@ -417,7 +416,7 @@ class SyncSetupActivity : BaseActivity() {
 
                 if (mustReset) toast(getString(R.string.sync_recovered_set_new_pass))
                 render()
-                SyncScheduler.schedulePeriodic(this@SyncSetupActivity)
+                SyncScheduler.disablePeriodic(this@SyncSetupActivity)
                 runSync()
             } catch (_: GetCredentialCancellationException) {
                 binding.submitLabel.setText(MODES.first { it.first == mode }.second)
@@ -571,7 +570,7 @@ class SyncSetupActivity : BaseActivity() {
     private fun signOut() {
         io.execute {
             runCatching { vault.signOut() }
-            // 退出后取消周期任务，否则它会一直跑、一直失败、一直耗电
+            // 退出后取消任何残留任务。
             runCatching { SyncScheduler.cancelAll(this) }
             runOnUiThread {
                 toast(getString(R.string.sync_signed_out))

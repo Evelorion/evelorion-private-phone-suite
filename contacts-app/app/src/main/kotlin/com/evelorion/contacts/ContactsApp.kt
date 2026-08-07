@@ -54,18 +54,9 @@ class ContactsApp : Application() {
         // 那时由具体的操作去要求用户输口令，这里不打扰他。
         runCatching { VaultManager.get(this).unlockFromCache() }
 
-        // 排周期同步。
-        //
-        // 之前 SyncScheduler 写好了但**没有任何地方调用**，所以从来没有
-        // 自动同步过 —— 用户只能手点「立即同步」，还会以为是坏了。
-        //
-        // 只在配置过同步的情况下排。没登录就排一个必然失败的任务，
-        // 除了耗电没有任何用。
-        runCatching {
-            if (VaultManager.get(this).isConfigured) {
-                SyncScheduler.schedulePeriodic(this)
-            }
-        }
+        // 通讯录只在新增、修改、删除或用户手动要求时同步。这里取消旧版本
+        // 已经登记的周期任务，避免升级后它仍在游戏期间访问云端。
+        runCatching { SyncScheduler.disablePeriodic(this) }
     }
 
     private companion object {

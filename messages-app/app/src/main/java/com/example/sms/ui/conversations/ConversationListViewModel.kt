@@ -51,7 +51,7 @@ class ConversationListViewModel(
     private val filter = MutableStateFlow(MsgFilter.ALL)
 
     val settings: StateFlow<AppSettings> = Graph.settings.settings
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(0), AppSettings())
 
     /** 相对时间（「3 分钟前」）需要定时重算，否则会一直停在最初的值 */
     private val ticker = flow {
@@ -73,7 +73,7 @@ class ConversationListViewModel(
             loading = false,
             blockedThisMonth = blocked,
         )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ListUiState())
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(0), ListUiState())
 
     fun setFilter(f: MsgFilter) { filter.value = f }
 

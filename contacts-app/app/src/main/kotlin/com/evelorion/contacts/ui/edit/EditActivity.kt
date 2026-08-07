@@ -252,8 +252,7 @@ class EditActivity : BaseActivity() {
 
             // 一律存进加密库 —— 这个 App 只有这一个数据源
             val ok = repo.save(target)
-            // 改完立刻推上去。不做的话用户得等下一个周期任务（最长一小时），
-            // 期间在别的设备上看不到刚加的联系人
+            // 只在联系人确实新增或修改成功后推送；不做周期或回到前台同步。
             if (ok) runCatching { SyncScheduler.syncNow(this, "edit") }
 
             runOnUiThread {

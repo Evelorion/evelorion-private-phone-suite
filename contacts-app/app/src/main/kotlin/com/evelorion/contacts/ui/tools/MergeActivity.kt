@@ -12,6 +12,7 @@ import com.evelorion.contacts.R
 import com.evelorion.contacts.data.ContactRepository
 import com.evelorion.contacts.data.DuplicateFinder
 import com.evelorion.contacts.databinding.ActivityMergeBinding
+import com.evelorion.contacts.sync.work.SyncScheduler
 import com.evelorion.contacts.ui.BaseActivity
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.evelorion.contacts.ui.Bg
@@ -97,6 +98,8 @@ class MergeActivity : BaseActivity() {
                     merged++
                 }
             }
+            // 合并同时包含修改主联系人和删除重复联系人，只在整批确实变化后同步一次。
+            if (merged > 0) runCatching { SyncScheduler.syncNow(this, "merge") }
             runOnUiThread {
                 Toast.makeText(this, getString(R.string.merge_done, merged), Toast.LENGTH_SHORT).show()
                 scan()

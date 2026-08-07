@@ -9,9 +9,7 @@ import com.evelorion.contacts.R
 import com.evelorion.contacts.data.ContactRepository
 import com.evelorion.contacts.data.ContactRepository.UiContact
 import com.evelorion.contacts.databinding.ActivityHomeBinding
-import com.evelorion.contacts.sync.VaultManager
 import com.evelorion.contacts.sync.work.SyncEvents
-import com.evelorion.contacts.sync.work.SyncScheduler
 import com.evelorion.contacts.ui.BaseActivity
 import com.evelorion.contacts.ui.CrashReport
 import com.evelorion.contacts.ui.detail.DetailActivity
@@ -124,17 +122,6 @@ class HomeActivity : BaseActivity() {
     override fun onResume() {
         super.onResume()
         load()
-
-        // 回到前台时检查是否需要同步；15 分钟内已经触发过就跳过。
-        //
-        // 走 WorkManager 而不是直接开线程 —— 它自带网络约束和退避重试，
-        // 而且节流 + REPLACE 保证用户来回切 App 不会反复扫描或堆出一串任务。
-        //
-        // 同步完成后 SyncWorker 会发广播，下面的 receiver 收到就刷新列表，
-        // 用户不用手动下拉。
-        runCatching {
-            if (VaultManager.get(this).isConfigured) SyncScheduler.syncOnResumeIfStale(this)
-        }
     }
 
     // ------------------------------------------------------------------ 数据
