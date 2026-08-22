@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Material 风格：纯蓝色话筒，纯平面、无渐变。 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp" android:height="108dp"
     android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="#F1F4FF"
+        android:pathData="M22,6h64a16,16 0,0 1,16 16v64a16,16 0,0 1,-16 16h-64a16,16 0,0 1,-16 -16v-64a16,16 0,0 1,16 -16z" />
     <group android:scaleX="2.5" android:scaleY="2.5"
         android:translateX="24" android:translateY="24">
         <path android:fillColor="#0B57D0"

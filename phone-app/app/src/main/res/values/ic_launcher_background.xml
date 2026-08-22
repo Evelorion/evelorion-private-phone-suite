@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- 两个 App 共用品牌底色，靠前景图形区分电话与通讯录。 -->
-    <color name="ic_launcher_background">#2A0736</color>
+    <color name="ic_launcher_background">#F1F4FF</color>
 </resources>

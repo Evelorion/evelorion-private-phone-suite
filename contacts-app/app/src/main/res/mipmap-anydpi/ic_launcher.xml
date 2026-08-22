@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Material 风格：深蓝联系人卡片 + 浅蓝索引标签，纯平面、无渐变。 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp" android:height="108dp"
     android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="#F1F4FF"
+        android:pathData="M22,6h64a16,16 0,0 1,16 16v64a16,16 0,0 1,-16 16h-64a16,16 0,0 1,-16 -16v-64a16,16 0,0 1,16 -16z" />
     <path android:fillColor="#0B57D0"
         android:pathData="M32,23h40a8,8 0,0 1,8 8v46a8,8 0,0 1,-8 8h-40a8,8 0,0 1,-8 -8v-46a8,8 0,0 1,8 -8z" />
     <path android:fillColor="#669DF6"

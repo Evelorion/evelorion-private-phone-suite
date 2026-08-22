@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Material 风格：深蓝主气泡 + 浅蓝副气泡，纯平面、无渐变。 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp" android:height="108dp"
     android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="#F1F4FF"
+        android:pathData="M22,6h64a16,16 0,0 1,16 16v64a16,16 0,0 1,-16 16h-64a16,16 0,0 1,-16 -16v-64a16,16 0,0 1,16 -16z" />
     <path android:fillColor="#669DF6"
         android:pathData="M43,25h34a9,9 0,0 1,9 9v25a9,9 0,0 1,-9 9h-8l-9,9v-9h-17a9,9 0,0 1,-9 -9v-25a9,9 0,0 1,9 -9z" />
     <path android:fillColor="#0B57D0"
