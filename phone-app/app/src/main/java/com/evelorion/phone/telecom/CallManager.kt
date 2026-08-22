@@ -204,6 +204,8 @@ object CallManager {
             it.can(Call.Details.CAPABILITY_HOLD) || it.can(Call.Details.CAPABILITY_SUPPORT_HOLD)
         } == true
         number = c.details?.handle?.schemeSpecificPart.orEmpty()
+        // Telecom/系统通讯录已经给出姓名时直接采用，这是零跨进程等待的最快路径。
+        c.details?.callerDisplayName?.trim()?.takeIf { it.isNotBlank() }?.let { callerName = it }
         if (c.state == Call.STATE_ACTIVE && connectedAt == 0L) {
             connectedAt = System.currentTimeMillis()
         }

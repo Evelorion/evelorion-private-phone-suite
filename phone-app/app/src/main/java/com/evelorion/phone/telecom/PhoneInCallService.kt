@@ -96,9 +96,14 @@ class PhoneInCallService : InCallService() {
         val number = CallManager.number.trim()
         if (number.isBlank() || number == callerLookupNumber) return
 
+        val numberChanged = callerLookupNumber.isNotBlank()
         callerLookupNumber = number
         // 同一通话的号码若被系统修正，不能继续显示旧号码查到的名字。
-        CallManager.updateCallerName("")
+        if (numberChanged) CallManager.updateCallerName("")
+
+        // 内存命中会在 showCallUi() 之前完成，因此第一帧直接是联系人姓名。
+        // 后台查询仍会运行一次，用最新联系人覆盖旧缓存，但不会让界面退回号码。
+        CallerIdResolver.resolveCached(applicationContext, number)
         CallerIdResolver.resolveAsync(applicationContext, number)
     }
 

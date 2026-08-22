@@ -41,6 +41,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -74,7 +75,6 @@ import com.evelorion.phone.telecom.CallAudioRecorder
 import com.evelorion.phone.telecom.CallManager
 import com.evelorion.phone.ui.components.MorphingSurface
 import com.evelorion.phone.ui.peer
-import com.evelorion.phone.ui.theme.ErrorColor
 import kotlinx.coroutines.delay
 
 /**
@@ -86,6 +86,7 @@ import kotlinx.coroutines.delay
 @Composable
 fun InCallScreen() {
     val context = LocalContext.current
+    val colors = MaterialTheme.colorScheme
     val lifecycleOwner = LocalLifecycleOwner.current
     val person = CallManager.peer()
     var seconds by remember { mutableIntStateOf(0) }
@@ -199,10 +200,10 @@ fun InCallScreen() {
 
             Box(
                 Modifier.padding(top = 18.dp).size(88.dp).clip(CircleShape)
-                    .background(Brush.linearGradient(listOf(Color(0xFFDCC7E8), Color(0xFF8FB7AA)))),
+                    .background(Brush.linearGradient(listOf(colors.primaryContainer, colors.tertiaryContainer))),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(person.initial, color = Color(0xFF17334A), fontSize = 34.sp, fontWeight = FontWeight.SemiBold)
+                Text(person.initial, color = colors.onPrimaryContainer, fontSize = 34.sp, fontWeight = FontWeight.SemiBold)
             }
             Text(
                 person.name,
@@ -318,7 +319,7 @@ fun InCallScreen() {
 
             MorphingSurface(
                 Modifier.padding(top = 14.dp).size(width = 164.dp, height = 64.dp),
-                color = ErrorColor,
+                color = colors.error,
                 restingCorner = 32.dp,
                 pressedCorner = 21.dp,
                 onClick = { CallManager.hangUp() },
@@ -397,8 +398,9 @@ private data class DialKey(val digit: Char, val letters: String = "")
 
 @Composable
 private fun MonetControl(modifier: Modifier, control: CallControl) {
-    val background = if (control.active) Color(0xFFD8C7EA) else Color(0xB72C4658)
-    val foreground = if (control.active) Color(0xFF253245) else Color.White
+    val colors = MaterialTheme.colorScheme
+    val background = if (control.active) colors.primaryContainer else colors.surfaceContainerHigh.copy(alpha = 0.82f)
+    val foreground = if (control.active) colors.onPrimaryContainer else colors.onSurface
     MorphingSurface(
         modifier.height(70.dp),
         color = background,

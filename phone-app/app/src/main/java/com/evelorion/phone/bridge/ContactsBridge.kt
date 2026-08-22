@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.content.pm.Signature
 import android.net.Uri
 import android.os.Build
+import android.telephony.PhoneNumberUtils
 import android.util.Log
 import java.security.MessageDigest
 
@@ -58,10 +59,26 @@ object ContactsBridge {
     /** 和通讯录 provider 里的分隔符必须一致。 */
     private const val GROUP_SEPARATOR = "\u0001"
 
+    /**
+     * 只存在电话进程内存中的联系人快照。电话主页读取过通讯录后，来电查名可以
+     * 在打开界面前直接命中；进程被系统回收时快照随之消失，不落盘、不复制密钥。
+     */
+    @Volatile
+    private var cachedContacts: List<Contact> = emptyList()
+
     /** 全部加密联系人。**耗时操作，必须在后台线程调用。** */
-    fun loadAll(context: Context): List<Contact> = query(
-        context, CONTACTS_URI
-    )
+    fun loadAll(context: Context): List<Contact> = query(context, CONTACTS_URI).also { contacts ->
+        if (accessState == AccessState.AVAILABLE) cachedContacts = contacts
+    }
+
+    /** 纯内存快速路径，可在来电主线程上调用，不执行 Binder、数据库或解密。 */
+    @Suppress("DEPRECATION")
+    fun lookupCached(context: Context, number: String): Contact? {
+        if (number.isBlank()) return null
+        return cachedContacts.firstOrNull { contact ->
+            contact.number.isNotBlank() && PhoneNumberUtils.compare(context, number, contact.number)
+        }
+    }
 
     /**
      * 按号码查是谁。来电显示用。
@@ -71,9 +88,19 @@ object ContactsBridge {
      */
     fun lookup(context: Context, number: String): Contact? {
         if (number.isBlank()) return null
+        lookupCached(context, number)?.let { return it }
+        return lookupFresh(context, number)
+    }
+
+    /** 跨进程读取最新联系人；用于快速路径已经把姓名画出来后的后台校正。 */
+    fun lookupFresh(context: Context, number: String): Contact? {
+        if (number.isBlank()) return null
         return query(
             context, Uri.parse("content://$AUTHORITY/lookup/" + Uri.encode(number))
-        ).firstOrNull()
+        ).firstOrNull()?.also { hit ->
+            // 只合并内存，不写磁盘。下次同一个人来电无需再次跨进程等待。
+            cachedContacts = cachedContacts.filterNot { it.id == hit.id } + hit
+        }
     }
 
     /** 修改通讯录中的真实收藏状态。只有同一发行证书签名的电话 App 能调用。 */

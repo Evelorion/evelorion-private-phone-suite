@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.KeyboardDoubleArrowDown
 import androidx.compose.material.icons.filled.KeyboardDoubleArrowUp
 import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -50,9 +51,10 @@ import kotlin.math.roundToInt
 /** 来电：上滑接听 / 下滑拒接，拖动中按钮变色变形 */
 @Composable
 fun IncomingCallScreen() {
-    // 对方信息来自真实通话。名字是异步查出来的（要跨进程解密），
-    // 查到之前显示号码 —— 等查到再显示界面会让来电晚零点几秒才出现。
+    // 对方信息来自真实通话；系统姓名或内存缓存会在第一帧直接填入，
+    // 后台查询只负责校正最新联系人名称。
     val person = CallManager.peer()
+    val colors = MaterialTheme.colorScheme
     var drag by remember { mutableFloatStateOf(0f) }
     var dragging by remember { mutableStateOf(false) }
     val density = LocalDensity.current
@@ -77,8 +79,8 @@ fun IncomingCallScreen() {
     val knobColor by animateColorAsState(
         when {
             drag < -threshold / 2 -> CallGreen
-            drag > threshold / 2 -> ErrorColor
-            else -> PrimaryContainer
+            drag > threshold / 2 -> colors.error
+            else -> colors.primaryContainer
         }, Motion.emphasized(Motion.DurationShort), label = "knobColor"
     )
     val knobCorner by animateDpAsState(if (dragging) 30.dp else 42.dp, Motion.springy(), label = "knobCorner")
@@ -93,7 +95,7 @@ fun IncomingCallScreen() {
         Box(Modifier.padding(top = 34.dp), contentAlignment = Alignment.Center) {
             Box(
                 Modifier.size(152.dp).scale(ring).alpha(ringAlpha)
-                    .border(2.dp, Color(0xFFD0BCFF), CircleShape)
+                    .border(2.dp, colors.primary, CircleShape)
             )
             Box(
                 Modifier.size(132.dp).clip(RoundedCornerShape(44.dp)).background(person.bg),
@@ -155,7 +157,7 @@ fun IncomingCallScreen() {
                 Icon(
                     if (drag > threshold / 2) Icons.Filled.CallEnd else Icons.Filled.Call,
                     "接听",
-                    tint = if (abs(drag) > threshold / 2) Color.White else OnPrimaryContainer,
+                    tint = if (abs(drag) > threshold / 2) Color.White else colors.onPrimaryContainer,
                     modifier = Modifier.size(36.dp)
                 )
             }
@@ -175,11 +177,13 @@ fun IncomingCallScreen() {
 
 @Composable
 private fun SecondaryAction(icon: ImageVector, label: String) {
+    val colors = MaterialTheme.colorScheme
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Box(
-            Modifier.size(56.dp).clip(RoundedCornerShape(20.dp)).background(DarkSurfaceContainer),
+            Modifier.size(56.dp).clip(RoundedCornerShape(20.dp))
+                .background(colors.surfaceContainerHigh.copy(alpha = 0.92f)),
             contentAlignment = Alignment.Center
-        ) { Icon(icon, label, tint = DarkOnSurfaceVariant, modifier = Modifier.size(24.dp)) }
+        ) { Icon(icon, label, tint = colors.onSurfaceVariant, modifier = Modifier.size(24.dp)) }
         Text(label, color = DarkOnSurfaceVariant, fontSize = 12.sp)
     }
 }
