@@ -1,6 +1,7 @@
 package com.example.sms.data.system
 
 import android.Manifest
+import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
 import android.content.pm.PackageManager
@@ -15,9 +16,17 @@ import kotlinx.coroutines.withContext
 /**
  * 与系统短信数据库（Telephony.Sms）打交道：
  *  - 首次启动时把已有短信导入本地 Room
- *  - 作为默认短信应用时，收/发的短信也要回写系统库（这是默认短信应用的义务）
+ *  - 作为默认短信应用时，收/发的短信先回写系统库
+ *  - 用户开启私密清理后，仅在本地 Room 保存成功后删除系统库副本
  */
 class SystemSmsStore(private val context: Context) {
+
+    sealed interface ClearResult {
+        data class Success(val deleted: Int) : ClearResult
+        data object NotDefaultSmsApp : ClearResult
+        data object MissingReadPermission : ClearResult
+        data class Failed(val reason: String) : ClearResult
+    }
 
     data class RawSms(
         val systemId: Long,
@@ -81,10 +90,6 @@ class SystemSmsStore(private val context: Context) {
             }
         }
         out
-    }
-
-    private companion object {
-        const val INITIAL_IMPORT_LIMIT = 100
     }
 
     /** 把收到的短信写进系统收件箱（仅默认短信应用需要且被允许） */
@@ -151,5 +156,55 @@ class SystemSmsStore(private val context: Context) {
             )
         }
         Unit
+    }
+
+    /** 删除刚写入系统库的单条副本；只使用 _id，避免误删相同号码的其它短信。 */
+    suspend fun deleteByUri(uri: Uri?): Int = withContext(Dispatchers.IO) {
+        if (uri == null || !isDefaultSmsApp()) return@withContext 0
+        val id = runCatching { ContentUris.parseId(uri) }.getOrNull() ?: return@withContext 0
+        deleteByIdsInternal(listOf(id))
+    }
+
+    /** 删除一批已经确认导入本地私密库的系统短信。 */
+    suspend fun deleteByIds(ids: Collection<Long>): Int = withContext(Dispatchers.IO) {
+        if (!isDefaultSmsApp()) return@withContext 0
+        ids.filter { it >= 0L }.distinct().chunked(DELETE_BATCH_SIZE).sumOf { batch ->
+            deleteByIdsInternal(batch)
+        }
+    }
+
+    /**
+     * 一键清空 Android 系统短信库。这里不会触碰本应用 Room 数据库。
+     * 只有当前默认短信应用才允许写系统 Provider。
+     */
+    suspend fun clearAll(): ClearResult = withContext(Dispatchers.IO) {
+        if (!isDefaultSmsApp()) return@withContext ClearResult.NotDefaultSmsApp
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_SMS) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            return@withContext ClearResult.MissingReadPermission
+        }
+        runCatching {
+            context.contentResolver.delete(Telephony.Sms.CONTENT_URI, null, null)
+        }.fold(
+            onSuccess = { ClearResult.Success(it) },
+            onFailure = { ClearResult.Failed(it.message ?: it.javaClass.simpleName) },
+        )
+    }
+
+    private fun deleteByIdsInternal(ids: Collection<Long>): Int {
+        val selection = SystemSmsDeleteSelection.byIds(ids) ?: return 0
+        return runCatching {
+            context.contentResolver.delete(
+                Telephony.Sms.CONTENT_URI,
+                selection.where,
+                selection.args,
+            )
+        }.getOrDefault(0)
+    }
+
+    private companion object {
+        const val INITIAL_IMPORT_LIMIT = 100
+        const val DELETE_BATCH_SIZE = 200
     }
 }

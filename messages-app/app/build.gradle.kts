@@ -18,8 +18,8 @@ android {
         applicationId = "com.evelorion.messages"
         minSdk = 24
         targetSdk = 36
-        versionCode = 7
-        versionName = "1.0.1-preview.6"
+        versionCode = 8
+        versionName = "1.0.1-preview.7"
         vectorDrawables { useSupportLibrary = true }
     }
 
@@ -99,6 +99,8 @@ ksp {
 }
 
 dependencies {
+    testImplementation("junit:junit:4.13.2")
+
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.runtime.ktx)

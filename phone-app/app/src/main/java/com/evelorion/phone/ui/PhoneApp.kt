@@ -126,6 +126,8 @@ fun PhoneApp(
     onRequestCallScreeningRole: () -> Unit = {},
     /** 跳去通讯录（让用户解锁保险库 / 建家人分组）。 */
     onOpenContacts: () -> Unit = {},
+    /** 清除 Android 系统 CallLog，但保留本应用私密通话记录。 */
+    onClearSystemCallLog: () -> Unit = {},
 ) {
     // 联系人和通话记录都要跨进程/查数据库，必须离开主线程。
     // 放在 LaunchedEffect 里而不是 remember{}：remember 的初始化在
@@ -234,6 +236,7 @@ fun PhoneApp(
                         com.evelorion.phone.sync.work.CallSyncScheduler.syncNow(context)
                         Toast.makeText(context, "正在同步通话记录", Toast.LENGTH_SHORT).show()
                     },
+                    onClearSystemCallLog = onClearSystemCallLog,
                 )
                 Screen.Recordings -> RecordingsScreen(state)
                 Screen.BlockedNumbers -> BlockedNumbersScreen(state)

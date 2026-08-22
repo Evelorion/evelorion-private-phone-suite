@@ -17,12 +17,18 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ColorLens
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.ViewAgenda
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -45,10 +51,36 @@ fun SettingsScreen(
     onThemeMode: (ThemeMode) -> Unit,
     onDynamicColor: (Boolean) -> Unit,
     onSeedColor: (Int) -> Unit,
+    onDeleteSystemSmsAfterImport: (Boolean) -> Unit,
     onSetDefaultApp: () -> Unit,
     onReimport: () -> Unit,
+    onClearSystemSms: () -> Unit,
 ) {
     val s = state.settings
+    var showClearSystemSmsDialog by rememberSaveable { mutableStateOf(false) }
+
+    if (showClearSystemSmsDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearSystemSmsDialog = false },
+            icon = { Icon(Icons.Default.DeleteSweep, null) },
+            title = { Text("清除系统短信？") },
+            text = {
+                Text("将删除 Android 系统短信库中的全部短信，其他短信 App 将无法再读取。本应用私密库中的短信不会删除。")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showClearSystemSmsDialog = false
+                        onClearSystemSms()
+                    },
+                ) { Text("确认清除", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearSystemSmsDialog = false }) { Text("取消") }
+            },
+        )
+    }
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
@@ -221,10 +253,48 @@ fun SettingsScreen(
             item { SectionLabel("数据") }
             item {
                 ListItem(
+                    headlineContent = { Text("自动清理系统短信") },
+                    supportingContent = {
+                        Text("短信确认保存到本应用私密库后，再删除 Android 系统数据库中的副本")
+                    },
+                    leadingContent = { Icon(Icons.Default.Security, null) },
+                    trailingContent = {
+                        Switch(
+                            checked = s.deleteSystemSmsAfterImport,
+                            onCheckedChange = onDeleteSystemSmsAfterImport,
+                        )
+                    },
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                )
+            }
+            item {
+                ListItem(
                     headlineContent = { Text("重新导入系统短信") },
                     supportingContent = { Text("从手机短信数据库同步到本应用（按 ID 去重）") },
                     leadingContent = { Icon(Icons.Default.Sync, null) },
                     modifier = Modifier.clickable(onClick = onReimport),
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                )
+            }
+            item {
+                ListItem(
+                    headlineContent = { Text("清除全部系统短信") },
+                    supportingContent = {
+                        Text(
+                            state.systemCleanupMessage.ifBlank {
+                                "只清除 Android 系统短信库，本应用中的短信保持不变"
+                            }
+                        )
+                    },
+                    leadingContent = { Icon(Icons.Default.DeleteSweep, null) },
+                    trailingContent = {
+                        if (state.clearingSystemSms) {
+                            CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
+                        }
+                    },
+                    modifier = Modifier.clickable(enabled = !state.clearingSystemSms) {
+                        showClearSystemSmsDialog = true
+                    },
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                 )
             }

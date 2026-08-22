@@ -106,6 +106,8 @@ class SmsSender(
         val result = runCatching {
             manager.sendMultipartTextMessage(address, null, parts, sentIntents, deliveredIntents)
         }
+        // 本地 PENDING 消息早已保存；系统接受发送请求后即可按隐私设置移除副本。
+        repository.deleteSystemCopyIfEnabled(sentUri)
         if (result.isFailure) {
             repository.setStatus(
                 messageId, MsgStatus.FAILED, result.exceptionOrNull()?.message ?: "发送失败",

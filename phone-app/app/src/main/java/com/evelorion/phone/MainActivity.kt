@@ -23,11 +23,13 @@ import com.evelorion.phone.telecom.DialerRole
 import com.evelorion.phone.telecom.CallScreeningRole
 import com.evelorion.phone.telecom.DialNumber
 import com.evelorion.phone.telecom.CallManager
+import com.evelorion.phone.telecom.SystemCallLogCleaner
 import com.evelorion.phone.ui.CrashReport
 import com.evelorion.phone.ui.PhoneApp
 import com.evelorion.phone.ui.PhoneState
 import com.evelorion.phone.ui.theme.PhoneM3Theme
 import java.lang.ref.WeakReference
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
@@ -58,6 +60,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             PhoneM3Theme {
                 val state = androidx.compose.runtime.remember { PhoneState() }
+                val uiScope = androidx.compose.runtime.rememberCoroutineScope()
 
                 LaunchedEffect(dialIntentRevision) {
                     if (dialIntentRevision > 0) {
@@ -124,6 +127,43 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
+                val clearSystemCallLog: () -> Unit = {
+                    when {
+                        !DialerRole.isDefault(this@MainActivity) -> requestDialerRole()
+                        ContextCompat.checkSelfPermission(
+                            this@MainActivity,
+                            Manifest.permission.WRITE_CALL_LOG,
+                        ) != PackageManager.PERMISSION_GRANTED -> {
+                            permissionLauncher.launch(
+                                arrayOf(
+                                    Manifest.permission.READ_CALL_LOG,
+                                    Manifest.permission.WRITE_CALL_LOG,
+                                )
+                            )
+                        }
+                        else -> uiScope.launch {
+                            val message = when (
+                                val result = SystemCallLogCleaner.clearAll(this@MainActivity)
+                            ) {
+                                is SystemCallLogCleaner.Result.Success -> {
+                                    if (result.deleted > 0) {
+                                        "已清除 ${result.deleted} 条系统通话记录，本应用记录保持不变"
+                                    } else {
+                                        "系统通话记录已经是空的，本应用记录保持不变"
+                                    }
+                                }
+                                SystemCallLogCleaner.Result.NotDefaultDialer ->
+                                    "请先把本应用设为默认电话应用"
+                                SystemCallLogCleaner.Result.MissingPermission ->
+                                    "请先授予通话记录权限后重试"
+                                is SystemCallLogCleaner.Result.Failed ->
+                                    "系统通话记录清理失败：${result.reason}"
+                            }
+                            Toast.makeText(this@MainActivity, message, Toast.LENGTH_LONG).show()
+                        }
+                    }
+                }
+
                 // 拨号请求。真正的拨出交给 Telecom，界面不自己跳转 ——
                 // 通话建立之前跳过去，用户会看到一个不存在的通话。
                 LaunchedEffect(state.pendingNumber) {
@@ -136,6 +176,7 @@ class MainActivity : ComponentActivity() {
                     onRequestDialerRole = requestDialerRole,
                     onRequestCallScreeningRole = requestCallScreeningRole,
                     onOpenContacts = { openContactsApp() },
+                    onClearSystemCallLog = clearSystemCallLog,
                 )
             }
         }

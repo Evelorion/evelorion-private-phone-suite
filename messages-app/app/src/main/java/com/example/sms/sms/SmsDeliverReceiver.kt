@@ -11,7 +11,7 @@ import kotlinx.coroutines.launch
 
 /**
  * SMS_DELIVER —— 只有「默认短信应用」才会收到。
- * 收到后由我们负责：写系统收件箱 + 写本地 Room + 弹通知。
+ * 收到后由我们负责：写系统收件箱 + 写本地 Room + 按隐私设置清理系统副本 + 弹通知。
  */
 class SmsDeliverReceiver : BroadcastReceiver() {
 
@@ -64,10 +64,13 @@ private fun BroadcastReceiver.handleIncomingSms(
 
     Graph.applicationScope.launch {
         try {
-            if (writeToSystemInbox) {
+            val systemUri = if (writeToSystemInbox) {
                 repo.systemSms.insertInbox(address, body, time, read = false)
-            }
-            val threadId = repo.onIncoming(address, body, time) ?: return@launch // 被拦截
+            } else null
+            // 先写本地私密库；只有这一步正常返回后，才允许删除系统层副本。
+            val threadId = repo.onIncoming(address, body, time)
+            repo.deleteSystemCopyIfEnabled(systemUri)
+            if (threadId == null) return@launch // 已保存到本地拦截日志，不显示通知
             val conv = repo.getConversation(threadId) ?: return@launch
             val prefs = settings.settings.first()
             if (prefs.notificationsEnabled && !conv.muted) {

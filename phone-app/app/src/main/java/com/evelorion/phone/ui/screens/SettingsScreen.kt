@@ -11,6 +11,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Diversity1
+import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.FiberManualRecord
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Notifications
@@ -19,6 +20,10 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -37,9 +42,34 @@ fun SettingsScreen(
     onRequestCallScreeningRole: () -> Unit = {},
     onOpenContacts: () -> Unit = {},
     onSyncCalls: () -> Unit = {},
+    onClearSystemCallLog: () -> Unit = {},
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val scheme = MaterialTheme.colorScheme
+    var showClearSystemCallLogDialog by rememberSaveable { mutableStateOf(false) }
+
+    if (showClearSystemCallLogDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearSystemCallLogDialog = false },
+            icon = { Icon(Icons.Filled.DeleteSweep, null) },
+            title = { Text("清除系统通话记录？") },
+            text = {
+                Text("将删除 Android 系统层面的全部通话记录，其他 App 将无法再读取。本电话 App 内的通话记录不会删除。")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showClearSystemCallLogDialog = false
+                        onClearSystemCallLog()
+                    },
+                ) { Text("确认清除", color = scheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearSystemCallLogDialog = false }) { Text("取消") }
+            },
+        )
+    }
+
     Column(
         Modifier.fillMaxSize().background(scheme.surfaceContainer.copy(alpha = 0.6f))
             .verticalScroll(rememberScrollState()).padding(top = 44.dp, bottom = 40.dp)
@@ -114,6 +144,14 @@ fun SettingsScreen(
             LinkRow(Icons.Filled.Diversity1, "家庭群组",
                 if (status.familyCount > 0) "${status.familyCount} 位成员 · 在通讯录里管理"
                 else "在通讯录里建一个叫「家人」的分组即可")
+        }
+        SettingsGroup("隐私") {
+            LinkRow(
+                Icons.Filled.DeleteSweep,
+                "清除系统通话记录",
+                "只清除 Android 系统记录，本应用中的通话记录保持不变",
+                onClick = { showClearSystemCallLogDialog = true },
+            )
         }
         SettingsGroup("通话") {
             LinkRow(

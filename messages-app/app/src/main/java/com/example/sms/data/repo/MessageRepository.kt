@@ -1,6 +1,7 @@
 package com.example.sms.data.repo
 
 import android.content.Context
+import android.net.Uri
 import com.example.sms.data.db.AppDatabase
 import com.example.sms.data.db.BlockedLogEntity
 import com.example.sms.data.db.ConversationEntity
@@ -199,6 +200,14 @@ class MessageRepository(
     suspend fun setMuted(threadId: Long, v: Boolean) = conversationDao.setMuted(threadId, v)
     suspend fun setBlocked(threadId: Long, v: Boolean) = conversationDao.setBlocked(threadId, v)
 
+    /** 本地保存已经完成后，再按隐私设置删除对应的系统短信副本。 */
+    suspend fun deleteSystemCopyIfEnabled(uri: Uri?) {
+        if (uri == null) return
+        if (settings.settings.first().deleteSystemSmsAfterImport) {
+            systemSms.deleteByUri(uri)
+        }
+    }
+
     suspend fun deleteMessage(messageId: Long) {
         val m = messageDao.getById(messageId) ?: return
         messageDao.delete(messageId)
@@ -217,7 +226,8 @@ class MessageRepository(
 
     /** 把系统短信库里已有的短信导入本地库；已导入过的用 systemId 去重 */
     suspend fun importSystemSms(force: Boolean = false): Int = withContext(Dispatchers.IO) {
-        val already = settings.settings.first().importedSystemSms
+        val appSettings = settings.settings.first()
+        val already = appSettings.importedSystemSms
         if (already && !force) return@withContext 0
 
         val raw = systemSms.readAll()
@@ -244,6 +254,10 @@ class MessageRepository(
                 )
             }
             messageDao.insertAll(entities)
+            if (appSettings.deleteSystemSmsAfterImport) {
+                // insertAll 成功返回才清理；即使是去重命中的旧消息，本地也已有副本。
+                systemSms.deleteByIds(entities.mapNotNull { it.systemId })
+            }
             inserted += entities.size
             val newest = list.maxByOrNull { it.time } ?: continue
             conversationDao.refreshSummary(threadId, newest.body, false, newest.time)

@@ -418,8 +418,18 @@ fun SmsApp(
                 onThemeMode = vm::setThemeMode,
                 onDynamicColor = vm::setDynamicColor,
                 onSeedColor = vm::setSeedColor,
+                onDeleteSystemSmsAfterImport = vm::setDeleteSystemSmsAfterImport,
                 onSetDefaultApp = requestDefaultSmsApp,
                 onReimport = vm::reimport,
+                onClearSystemSms = {
+                    when {
+                        !context.isDefaultSmsApp() -> requestDefaultSmsApp()
+                        !context.hasPermission(Manifest.permission.READ_SMS) -> {
+                            permissionLauncher.launch(arrayOf(Manifest.permission.READ_SMS))
+                        }
+                        else -> vm.clearSystemSms()
+                    }
+                },
             )
         }
     }

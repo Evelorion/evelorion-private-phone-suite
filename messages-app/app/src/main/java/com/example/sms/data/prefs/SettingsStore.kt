@@ -28,6 +28,8 @@ data class AppSettings(
     /** 发送短信使用的 SIM 卡 subscriptionId；-1 表示系统默认卡 */
     val sendSubId: Int = -1,
     val importedSystemSms: Boolean = false,
+    /** 私密库保存成功后，删除 Android 系统短信数据库里的副本。 */
+    val deleteSystemSmsAfterImport: Boolean = false,
 )
 
 /** 设置写在 DataStore 的真实文件里（files/datastore/settings.preferences_pb），重启保留 */
@@ -45,6 +47,7 @@ class SettingsStore(private val context: Context) {
         val seedColor = intPreferencesKey("seed_color")
         val sendSubId = intPreferencesKey("send_sub_id")
         val imported = booleanPreferencesKey("imported_system_sms")
+        val deleteSystemSmsAfterImport = booleanPreferencesKey("delete_system_sms_after_import")
     }
 
     val settings: Flow<AppSettings> = context.dataStore.data.map { p ->
@@ -60,6 +63,7 @@ class SettingsStore(private val context: Context) {
             seedColor = p[Keys.seedColor] ?: 0,
             sendSubId = p[Keys.sendSubId] ?: -1,
             importedSystemSms = p[Keys.imported] ?: false,
+            deleteSystemSmsAfterImport = p[Keys.deleteSystemSmsAfterImport] ?: false,
         )
     }
 
@@ -72,4 +76,7 @@ class SettingsStore(private val context: Context) {
     suspend fun setSeedColor(v: Int) = context.dataStore.edit { it[Keys.seedColor] = v }
     suspend fun setSendSubId(v: Int) = context.dataStore.edit { it[Keys.sendSubId] = v }
     suspend fun setImported(v: Boolean) = context.dataStore.edit { it[Keys.imported] = v }
+    suspend fun setDeleteSystemSmsAfterImport(v: Boolean) = context.dataStore.edit {
+        it[Keys.deleteSystemSmsAfterImport] = v
+    }
 }
