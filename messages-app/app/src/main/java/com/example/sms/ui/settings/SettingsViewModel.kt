@@ -47,7 +47,6 @@ class SettingsViewModel(
     fun setNotifications(v: Boolean) = viewModelScope.launch { store.setNotifications(v) }
     fun setBlockSpam(v: Boolean) = viewModelScope.launch { store.setBlockSpam(v) }
     fun setRcs(v: Boolean) = viewModelScope.launch { store.setRcs(v) }
-    fun setSmartReply(v: Boolean) = viewModelScope.launch { store.setSmartReply(v) }
     fun setListStyle(v: ListStyle) = viewModelScope.launch { store.setListStyle(v) }
     fun setThemeMode(v: ThemeMode) = viewModelScope.launch { store.setThemeMode(v) }
     fun setDynamicColor(v: Boolean) = viewModelScope.launch { store.setDynamicColor(v) }

@@ -11,7 +11,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Chat
-import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
@@ -42,7 +41,6 @@ fun SettingsScreen(
     onNotifications: (Boolean) -> Unit,
     onBlockSpam: (Boolean) -> Unit,
     onRcs: (Boolean) -> Unit,
-    onSmartReply: (Boolean) -> Unit,
     onListStyle: (ListStyle) -> Unit,
     onThemeMode: (ThemeMode) -> Unit,
     onDynamicColor: (Boolean) -> Unit,
@@ -151,16 +149,6 @@ fun SettingsScreen(
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                 )
             }
-            item {
-                ListItem(
-                    headlineContent = { Text("智能回复") },
-                    supportingContent = { Text("在输入框上方给出候选回复") },
-                    leadingContent = { Icon(Icons.Default.AutoAwesome, null) },
-                    trailingContent = { Switch(checked = s.smartReplyEnabled, onCheckedChange = onSmartReply) },
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                )
-            }
-
             item { SectionLabel("外观") }
             item {
                 ListItem(

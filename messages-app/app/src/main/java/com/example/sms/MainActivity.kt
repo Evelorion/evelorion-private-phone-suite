@@ -337,7 +337,6 @@ fun SmsApp(
 
             ChatScreen(
                 state = state,
-                smartReplyEnabled = settings.smartReplyEnabled,
                 rcsEnabled = settings.rcsEnabled,
                 onBack = { vm.persistDraft(); nav.popBackStack() },
                 onDraftChange = vm::onDraftChange,
@@ -415,7 +414,6 @@ fun SmsApp(
                 onNotifications = vm::setNotifications,
                 onBlockSpam = vm::setBlockSpam,
                 onRcs = vm::setRcs,
-                onSmartReply = vm::setSmartReply,
                 onListStyle = vm::setListStyle,
                 onThemeMode = vm::setThemeMode,
                 onDynamicColor = vm::setDynamicColor,

@@ -20,7 +20,6 @@ data class AppSettings(
     val notificationsEnabled: Boolean = true,
     val blockSpam: Boolean = false,
     val rcsEnabled: Boolean = true,
-    val smartReplyEnabled: Boolean = true,
     val listStyle: ListStyle = ListStyle.LIST_1A,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val dynamicColor: Boolean = true,
@@ -40,7 +39,6 @@ class SettingsStore(private val context: Context) {
         val notifications = booleanPreferencesKey("notifications_enabled")
         val blockSpam = booleanPreferencesKey("block_spam")
         val rcs = booleanPreferencesKey("rcs_enabled")
-        val smartReply = booleanPreferencesKey("smart_reply_enabled")
         val listStyle = stringPreferencesKey("list_style")
         val themeMode = stringPreferencesKey("theme_mode")
         val dynamicColor = booleanPreferencesKey("dynamic_color")
@@ -54,7 +52,6 @@ class SettingsStore(private val context: Context) {
             notificationsEnabled = p[Keys.notifications] ?: true,
             blockSpam = p[Keys.blockSpam] ?: false,
             rcsEnabled = p[Keys.rcs] ?: true,
-            smartReplyEnabled = p[Keys.smartReply] ?: true,
             listStyle = runCatching { ListStyle.valueOf(p[Keys.listStyle] ?: "") }
                 .getOrDefault(ListStyle.LIST_1A),
             themeMode = runCatching { ThemeMode.valueOf(p[Keys.themeMode] ?: "") }
@@ -69,7 +66,6 @@ class SettingsStore(private val context: Context) {
     suspend fun setNotifications(v: Boolean) = context.dataStore.edit { it[Keys.notifications] = v }
     suspend fun setBlockSpam(v: Boolean) = context.dataStore.edit { it[Keys.blockSpam] = v }
     suspend fun setRcs(v: Boolean) = context.dataStore.edit { it[Keys.rcs] = v }
-    suspend fun setSmartReply(v: Boolean) = context.dataStore.edit { it[Keys.smartReply] = v }
     suspend fun setListStyle(v: ListStyle) = context.dataStore.edit { it[Keys.listStyle] = v.name }
     suspend fun setThemeMode(v: ThemeMode) = context.dataStore.edit { it[Keys.themeMode] = v.name }
     suspend fun setDynamicColor(v: Boolean) = context.dataStore.edit { it[Keys.dynamicColor] = v }

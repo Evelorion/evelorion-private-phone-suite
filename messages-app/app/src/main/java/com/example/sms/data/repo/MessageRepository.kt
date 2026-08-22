@@ -151,6 +151,10 @@ class MessageRepository(
     suspend fun prepareMultipart(messageId: Long, partCount: Int) =
         messageDao.prepareMultipart(messageId, partCount.coerceAtLeast(1))
 
+    /** @return 这次失败是否真的把仍在发送中的消息改成了失败。 */
+    suspend fun recordSendFailure(messageId: Long, error: String): Boolean =
+        messageDao.markFailedIfPending(messageId, error) > 0
+
     /** @return 所有分段是否都已发送成功。 */
     suspend fun recordSentPart(messageId: Long): Boolean {
         messageDao.incrementSentParts(messageId)

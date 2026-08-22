@@ -98,6 +98,14 @@ interface MessageDao {
 
     @Query(
         """
+        UPDATE messages SET status = 'FAILED', errorMessage = :error
+        WHERE id = :id AND status = 'PENDING'
+        """
+    )
+    suspend fun markFailedIfPending(id: Long, error: String): Int
+
+    @Query(
+        """
         UPDATE messages SET
             partCount = :partCount,
             sentParts = 0,

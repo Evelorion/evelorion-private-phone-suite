@@ -43,7 +43,6 @@ data class ChatUiState(
     val address: String = "",
     val items: List<ChatItem> = emptyList(),
     val draft: String = "",
-    val smartReplies: List<String> = emptyList(),
     val sending: Boolean = false,
 )
 
@@ -69,7 +68,6 @@ class ChatViewModel(
             address = conv?.address.orEmpty(),
             items = buildItems(messages, isTyping),
             draft = d,
-            smartReplies = smartRepliesFor(messages.lastOrNull()),
             sending = isSending,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ChatUiState())
@@ -178,16 +176,4 @@ class ChatViewModel(
         }
     }
 
-    /** 简单的本地智能回复：按对方最后一句给三个候选 */
-    private fun smartRepliesFor(last: MessageEntity?): List<String> {
-        if (last == null || last.outgoing) return listOf("好的👌", "在的", "稍后回复你")
-        val text = last.body
-        return when {
-            text.contains("吃饭") || text.contains("饭") -> listOf("好的👌", "我带点水果", "可能会晚点")
-            text.contains("几点") || text.contains("时间") -> listOf("六点半", "我尽量早点", "晚点告诉你")
-            text.contains("取件码") || text.contains("快递") -> listOf("收到，谢谢", "我下班去取", "麻烦放驿站")
-            text.contains("？") || text.contains("?") -> listOf("好的👌", "让我想想", "稍后回复你")
-            else -> listOf("好的👌", "收到", "我看一下")
-        }
-    }
 }

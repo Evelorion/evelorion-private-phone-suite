@@ -8,7 +8,6 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.imePadding
@@ -16,7 +15,6 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -49,7 +47,7 @@ import com.example.sms.util.SimUtils
 import com.example.sms.util.VoicePlayer
 import kotlinx.coroutines.launch
 
-/* 1d / 1h — 会话详情：文字 / 图片 / 语音波形 / 表情回应 / 正在输入 / 智能回复 */
+/* 1d / 1h — 会话详情：文字 / 图片 / 语音波形 / 表情回应 / 正在输入 */
 
 private val reactionChoices = listOf("❤️", "👍", "😂", "😮", "😢", "🙏")
 
@@ -61,7 +59,6 @@ private val reactionChoices = listOf("❤️", "👍", "😂", "😮", "😢", "
 @Composable
 fun ChatScreen(
     state: ChatUiState,
-    smartReplyEnabled: Boolean,
     rcsEnabled: Boolean,
     onBack: () -> Unit,
     onDraftChange: (String) -> Unit,
@@ -152,17 +149,6 @@ fun ChatScreen(
                     .navigationBarsPadding()
                     .imePadding()
             ) {
-                if (smartReplyEnabled && state.smartReplies.isNotEmpty()) {
-                    Row(
-                        Modifier.horizontalScroll(rememberScrollState())
-                            .padding(horizontal = 12.dp, vertical = 4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        state.smartReplies.forEach { s ->
-                            SuggestionChip(onClick = { onDraftChange(s) }, label = { Text(s) })
-                        }
-                    }
-                }
                 Row(
                     Modifier.fillMaxWidth()
                         .padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 12.dp),

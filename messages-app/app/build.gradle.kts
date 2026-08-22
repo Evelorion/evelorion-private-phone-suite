@@ -18,8 +18,8 @@ android {
         applicationId = "com.evelorion.messages"
         minSdk = 24
         targetSdk = 36
-        versionCode = 5
-        versionName = "1.0.1-preview.4"
+        versionCode = 6
+        versionName = "1.0.1-preview.5"
         vectorDrawables { useSupportLibrary = true }
     }
 

@@ -22,6 +22,10 @@ class SmsStatusReceiver : BroadcastReceiver() {
     }
 
     override fun onReceive(context: Context, intent: Intent) {
+        // BroadcastReceiver 的 resultCode 只保证在 onReceive 返回前有效。
+        // goAsync() 后再从 Receiver 读取会变回默认值 0，把成功回执误判为失败。
+        val action = intent.action
+        val broadcastResultCode = resultCode
         val messageId = intent.getLongExtra(EXTRA_MESSAGE_ID, -1L)
         if (messageId < 0) return
         val systemUri = intent.getStringExtra(EXTRA_SYSTEM_URI)
@@ -31,19 +35,21 @@ class SmsStatusReceiver : BroadcastReceiver() {
 
         Graph.applicationScope.launch {
             try {
-                when (intent.action) {
+                when (action) {
                     ACTION_SENT -> {
-                        if (resultCode == Activity.RESULT_OK) {
+                        if (broadcastResultCode == Activity.RESULT_OK) {
                             if (repo.recordSentPart(messageId)) {
                                 repo.systemSms.updateStatus(systemUri, MsgStatus.SENT)
                             }
                         } else {
-                            repo.setStatus(messageId, MsgStatus.FAILED, errorText(resultCode))
-                            repo.systemSms.updateStatus(systemUri, MsgStatus.FAILED)
+                            // 晚到或重复的失败广播不能把已发送/已送达消息降级为失败。
+                            if (repo.recordSendFailure(messageId, errorText(broadcastResultCode))) {
+                                repo.systemSms.updateStatus(systemUri, MsgStatus.FAILED)
+                            }
                         }
                     }
                     ACTION_DELIVERED -> {
-                        if (resultCode == Activity.RESULT_OK) {
+                        if (broadcastResultCode == Activity.RESULT_OK) {
                             repo.recordDeliveredPart(messageId)
                         }
                     }
