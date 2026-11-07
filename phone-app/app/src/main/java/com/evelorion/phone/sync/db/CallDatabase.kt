@@ -42,6 +42,14 @@ data class CallRecordEntity(
     val endedAt: Long = 0,
     val durationSeconds: Int,
 
+    /**
+     * 这通电话落在哪张 SIM 卡上，例如「卡 2 · 中国联通」。
+     *
+     * 通话记录一旦离开当时的 Telecom 回调，就再也推不出是哪张卡了，
+     * 所以只能当场记下来。旧记录没有这一项，读出来是空串，界面自然不显示。
+     */
+    val simLabel: String = "",
+
     /** 服务端版本号，推送时当 baseRev 用。0 表示服务端还没有这条。 */
     val rev: Int = 0,
     /** 有待推送的本地改动。 */
@@ -105,7 +113,7 @@ interface CallDao {
     fun putState(state: CallSyncStateEntity)
 }
 
-@Database(entities = [CallRecordEntity::class, CallSyncStateEntity::class], version = 3, exportSchema = true)
+@Database(entities = [CallRecordEntity::class, CallSyncStateEntity::class], version = 4, exportSchema = true)
 abstract class CallDatabase : RoomDatabase() {
 
     abstract fun callDao(): CallDao
@@ -130,6 +138,13 @@ abstract class CallDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // 旧记录不知道当时用的哪张卡，留空即可 —— 不猜、不编。
+                db.execSQL("ALTER TABLE call_records ADD COLUMN simLabel TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
         @Volatile
         private var instance: CallDatabase? = null
 
@@ -147,7 +162,7 @@ abstract class CallDatabase : RoomDatabase() {
          */
         fun get(context: Context): CallDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(context.applicationContext, CallDatabase::class.java, NAME)
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                 .build().also { instance = it }
         }
     }

@@ -36,6 +36,8 @@ class PhoneInCallService : InCallService() {
 
     override fun onCreate() {
         super.onCreate()
+        // 订阅列表（哪张卡在通话）只在这里能读：Service 活着通话才存在。
+        CallManager.attachContext(this)
         callNotification = CallNotificationController(this)
         CallManager.addListener(notificationListener)
     }
@@ -59,6 +61,8 @@ class PhoneInCallService : InCallService() {
             CallManager.connectedAt,
             CallManager.callerName,
             CallManager.outgoing,
+            // 先取卡再清状态：onCallRemoved 之后 CallManager.sim 会被置空。
+            CallManager.sim?.label.orEmpty(),
         )
         CallManager.onCallRemoved(call)
     }
@@ -85,6 +89,7 @@ class PhoneInCallService : InCallService() {
         CallManager.removeListener(notificationListener)
         callNotification.stop()
         CallManager.attachService(null)
+        CallManager.attachContext(null)
         super.onDestroy()
     }
 

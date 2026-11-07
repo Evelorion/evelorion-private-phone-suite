@@ -9,8 +9,10 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Backspace
@@ -19,10 +21,16 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -32,8 +40,10 @@ import com.evelorion.phone.ui.Motion
 import com.evelorion.phone.ui.PhoneState
 import com.evelorion.phone.ui.components.Avatar
 import com.evelorion.phone.ui.components.MorphingSurface
+import com.evelorion.phone.ui.components.simTint
 import com.evelorion.phone.ui.theme.CallGreen
 import com.evelorion.phone.telecom.DialNumber
+import com.evelorion.phone.telecom.SimCards
 
 private val keys = listOf(
     "1" to "", "2" to "ABC", "3" to "DEF",
@@ -48,6 +58,16 @@ private val keys = listOf(
 fun DialpadScreen(state: PhoneState) {
     val scheme = MaterialTheme.colorScheme
     val clipboard = LocalClipboardManager.current
+    val context = LocalContext.current
+    // 双卡机器上拨号前先明确用哪张卡；单卡（或没权限读订阅）时整行不显示。
+    val sims = remember { SimCards.available(context) }
+    var chosenSubId by remember {
+        mutableIntStateOf(SimCards.selected(context)?.subscriptionId ?: -1)
+    }
+    // 号码的手动编辑：点击号码打开，粘贴之后也会自动打开，
+    // 这样粘错一位不用整串删掉重来。
+    var editing by remember { mutableStateOf(false) }
+    var draft by remember { mutableStateOf("") }
     val digits = state.dial.filter { it.isDigit() }
     val match: Person? = if (digits.length >= 2)
         PhoneData.people.firstOrNull { it.number.replace(" ", "").contains(digits) } else null
@@ -75,22 +95,65 @@ fun DialpadScreen(state: PhoneState) {
             Box(
                 Modifier.fillMaxWidth().heightIn(min = 64.dp)
                     .combinedClickable(
-                        onClick = {},
+                        onClick = {
+                            draft = state.dial
+                            editing = true
+                        },
                         onLongClick = {
-                            clipboard.getText()?.text?.let {
-                                state.dial = DialNumber.sanitizeInput(it)
+                            val pasted = clipboard.getText()?.text
+                                ?.let { DialNumber.sanitizeInput(it) }
+                                .orEmpty()
+                            if (pasted.isNotBlank()) {
+                                state.dial = pasted
+                                draft = pasted
+                                editing = true
                             }
                         },
                     ),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    state.dial.ifBlank { "长按这里粘贴号码" },
+                    state.dial.ifBlank { "点这里编辑 · 长按粘贴号码" },
                     color = if (state.dial.isBlank()) scheme.onSurfaceVariant else scheme.onSurface,
                     fontSize = if (state.dial.isBlank()) 15.sp else fontSize.sp,
                     letterSpacing = if (state.dial.isBlank()) 0.sp else 2.sp,
                     textAlign = TextAlign.Center,
                 )
+            }
+            if (sims.size > 1) {
+                Row(
+                    Modifier.padding(top = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    sims.forEach { sim ->
+                        val selected = sim.subscriptionId == chosenSubId
+                        Row(
+                            Modifier.clip(RoundedCornerShape(18.dp))
+                                .background(
+                                    if (selected) scheme.secondaryContainer else scheme.surfaceContainerHigh
+                                )
+                                .clickable {
+                                    chosenSubId = sim.subscriptionId
+                                    // 记住选择：下次进来还是这张卡，不用每次都点。
+                                    SimCards.remember(context, sim.subscriptionId)
+                                }
+                                .padding(horizontal = 12.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Box(Modifier.size(8.dp).clip(CircleShape).background(simTint(sim)))
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                buildString {
+                                    append(sim.slotLabel)
+                                    val extra = sim.displayName.ifBlank { sim.carrierName }
+                                    if (extra.isNotBlank()) append(" · ").append(extra)
+                                },
+                                color = if (selected) scheme.onSecondaryContainer else scheme.onSurfaceVariant,
+                                fontSize = 12.sp,
+                            )
+                        }
+                    }
+                }
             }
             AnimatedVisibility(
                 visible = match != null,
@@ -173,5 +236,33 @@ fun DialpadScreen(state: PhoneState) {
                 }
             }
         }
+    }
+
+    // 粘贴/点击之后的可编辑窗口。粘错一位不必整串删掉重来。
+    if (editing) {
+        AlertDialog(
+            onDismissRequest = { editing = false },
+            title = { Text("编辑号码") },
+            text = {
+                OutlinedTextField(
+                    value = draft,
+                    onValueChange = { draft = DialNumber.sanitizeInput(it) },
+                    singleLine = true,
+                    label = { Text("号码") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        state.dial = draft
+                        editing = false
+                    }
+                ) { Text("确定") }
+            },
+            dismissButton = {
+                TextButton(onClick = { editing = false }) { Text("取消") }
+            },
+        )
     }
 }

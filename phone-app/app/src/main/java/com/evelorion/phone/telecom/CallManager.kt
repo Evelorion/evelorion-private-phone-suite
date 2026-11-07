@@ -1,5 +1,6 @@
 package com.evelorion.phone.telecom
 
+import android.content.Context
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -68,6 +69,19 @@ object CallManager {
     var connectedAt by mutableStateOf(0L)
         private set
 
+    /**
+     * 这通电话落在哪张 SIM 卡上。
+     *
+     * 默认语音卡只解释「拨出默认用哪张」，解释不了「来电是打到哪个号的」，
+     * 所以这里必须从 Telecom 的 Call.Details 推，见 [SimCards]。
+     * 读不到时保持 null，界面不显示标签，不影响通话本身。
+     */
+    var sim by mutableStateOf<SimCard?>(null)
+        private set
+
+    /** 应用上下文，用来读订阅列表。由 InCallService 在 onCreate/onDestroy 里挂载和释放。 */
+    private var appContext: Context? = null
+
     var muted by mutableStateOf(false)
         private set
 
@@ -112,6 +126,17 @@ object CallManager {
         service = inCallService
     }
 
+    /**
+     * 挂上应用上下文。
+     *
+     * 只在这里用 applicationContext，绝不能用 Activity 或 Service 实例：
+     * 通话可能在任意界面存活，持有一个会销毁的 Context 就是内存泄漏。
+     */
+    fun attachContext(context: Context?) {
+        appContext = context?.applicationContext
+        if (context == null) sim = null
+    }
+
     fun onCallAdded(newCall: Call) {
         call = newCall
         outgoing = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -121,6 +146,7 @@ object CallManager {
         }
         newCall.registerCallback(callback)
         syncFrom(newCall)
+        refreshSim(newCall)
         notifyListeners()
     }
 
@@ -133,6 +159,7 @@ object CallManager {
             callerName = ""
             outgoing = false
             connectedAt = 0L
+            sim = null
             dtmfTyped = ""
             muted = false
             speakerOn = false
@@ -209,7 +236,21 @@ object CallManager {
         if (c.state == Call.STATE_ACTIVE && connectedAt == 0L) {
             connectedAt = System.currentTimeMillis()
         }
+        if (sim == null) refreshSim(c)
         notifyListeners()
+    }
+
+    /**
+     * 解析当前通话的 SIM。
+     *
+     * 每次状态/详情变化都会调用，但只有解析到值时才写 state —— 解析失败
+     * 保持 null，界面就不显示标签。不用「解析失败」这类状态去打扰用户：
+     * 单卡机器、没有权限、旧系统上都可能拿不到，这不是错误。
+     */
+    private fun refreshSim(c: Call) {
+        val context = appContext ?: return
+        val resolved = SimCards.forCall(context, c) ?: return
+        if (resolved != sim) sim = resolved
     }
 
     // ------------------------------------------------------------ 界面侧动作

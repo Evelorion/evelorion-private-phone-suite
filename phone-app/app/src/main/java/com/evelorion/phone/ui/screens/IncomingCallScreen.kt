@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.evelorion.phone.telecom.CallManager
+import com.evelorion.phone.ui.components.SimBadge
 import com.evelorion.phone.ui.peer
 import com.evelorion.phone.ui.Motion
 import com.evelorion.phone.ui.PhoneState
@@ -106,6 +107,11 @@ fun IncomingCallScreen() {
         // 没有归属地库时不要留一个孤零零的「·」
         val subtitle = if (person.city.isBlank()) person.number else "${person.number} · ${person.city}"
         Text(subtitle, color = DarkOnSurfaceVariant, fontSize = 15.sp)
+
+        // 双卡机器上「这通电话打到我哪个号」比归属地更常被问。
+        CallManager.sim?.let { sim ->
+            Box(Modifier.padding(top = 10.dp)) { SimBadge(sim) }
+        }
 
         Spacer(Modifier.weight(1f))
         Row(

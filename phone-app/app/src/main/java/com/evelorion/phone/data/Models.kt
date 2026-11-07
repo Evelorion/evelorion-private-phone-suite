@@ -41,7 +41,9 @@ data class CallLog(
     val displayInitial: String? = null,
     val displayBg: Color? = null,
     val displayFg: Color? = null,
-    val displayCity: String? = null
+    val displayCity: String? = null,
+    /** 这通电话所在的 SIM 卡，例如「卡 2 · 中国联通」；旧记录为空串。 */
+    val simLabel: String = ""
 )
 
 data class HistoryEntry(

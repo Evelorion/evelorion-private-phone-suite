@@ -37,6 +37,7 @@ object CallRecorder {
         connectedAt: Long,
         resolvedName: String,
         outgoing: Boolean,
+        simLabel: String = "",
     ) {
         val number = call.details?.handle?.schemeSpecificPart.orEmpty()
         if (number.isBlank()) return
@@ -67,6 +68,7 @@ object CallRecorder {
                     startedAt = createdAt,
                     endedAt = now,
                     durationSeconds = duration,
+                    simLabel = simLabel,
                     dirty = true,
                 )
             )

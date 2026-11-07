@@ -74,6 +74,7 @@ import com.evelorion.phone.MainActivity
 import com.evelorion.phone.telecom.CallAudioRecorder
 import com.evelorion.phone.telecom.CallManager
 import com.evelorion.phone.ui.components.MorphingSurface
+import com.evelorion.phone.ui.components.SimBadge
 import com.evelorion.phone.ui.peer
 import kotlinx.coroutines.delay
 
@@ -216,6 +217,10 @@ fun InCallScreen() {
             )
             if (CallManager.number.isNotBlank() && CallManager.number != person.name) {
                 Text(CallManager.number, color = Color(0xFFDCE9F4), fontSize = 14.sp)
+            }
+            // 通话中补一个卡标签：双卡用户经常在接通后才发现用错了卡。
+            CallManager.sim?.let { sim ->
+                Box(Modifier.padding(top = 8.dp)) { SimBadge(sim) }
             }
 
             AnimatedVisibility(
