@@ -41,7 +41,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.evelorion.phone.data.BlockedCallStore
 import com.evelorion.phone.data.BlockedNumberStore
+import com.evelorion.phone.data.absoluteTimeText
+import com.evelorion.phone.data.relativeTimeText
 import com.evelorion.phone.ui.PhoneState
 
 @Composable
@@ -49,6 +52,18 @@ fun BlockedNumbersScreen(state: PhoneState) {
     val context = LocalContext.current
     val scheme = MaterialTheme.colorScheme
     val entries = remember(state.blockedRevision) { BlockedNumberStore.all(context) }
+    // 「这个号被打黑之后又打来过吗、什么时候、几次」—— 拉黑之后最想知道的事。
+    val stats = remember(state.blockedRevision, entries) {
+        // 一次解密拿全部统计，避免每行都去解一次加密存储。
+        val byNumber = BlockedCallStore.statsByNormalized(context)
+        entries.associate { entry ->
+            entry.number to (
+                byNumber[BlockedCallStore.normalize(entry.number)]
+                    ?: com.evelorion.phone.data.BlockedCallStats(0, 0L, "")
+                )
+        }
+    }
+    val history = remember(state.blockedRevision) { BlockedCallStore.recent(context, limit = 20) }
     var showAdd by remember { mutableStateOf(false) }
 
     Box(Modifier.fillMaxSize().background(scheme.surfaceContainer.copy(alpha = 0.6f))) {
@@ -91,6 +106,24 @@ fun BlockedNumbersScreen(state: PhoneState) {
                             if (entry.label.isNotBlank()) {
                                 Text(entry.number, color = scheme.onSurfaceVariant, fontSize = 13.sp)
                             }
+                            val itemStats = stats[entry.number]
+                            if (itemStats != null && itemStats.hasHistory) {
+                                val sim = itemStats.lastSimLabel.takeIf { it.isNotBlank() }
+                                Text(
+                                    buildString {
+                                        append("最近来电 ")
+                                        append(relativeTimeText(itemStats.lastAt))
+                                        append(" · 共 ")
+                                        append(itemStats.count)
+                                        append(" 次")
+                                        if (sim != null) append(" · ").append(sim)
+                                    },
+                                    color = scheme.error,
+                                    fontSize = 12.sp,
+                                )
+                            } else {
+                                Text("拉黑后还没打来过", color = scheme.onSurfaceVariant, fontSize = 12.sp)
+                            }
                         }
                         IconButton(onClick = {
                             BlockedNumberStore.remove(context, entry.number)
@@ -100,6 +133,48 @@ fun BlockedNumbersScreen(state: PhoneState) {
                             )
                         }) {
                             Icon(Icons.Filled.Delete, "解除拦截", tint = scheme.error)
+                        }
+                    }
+                }
+            }
+
+            if (history.isNotEmpty()) {
+                item {
+                    Row(
+                        Modifier.fillMaxWidth()
+                            .padding(start = 28.dp, end = 24.dp, top = 22.dp, bottom = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text("拦截记录", style = MaterialTheme.typography.titleMedium)
+                        Spacer(Modifier.weight(1f))
+                        Text("最近 ${history.size} 次", color = scheme.onSurfaceVariant, fontSize = 12.sp)
+                    }
+                }
+                items(history, key = { "log-${it.at}-${it.number}" }) { call ->
+                    Row(
+                        Modifier.padding(horizontal = 12.dp, vertical = 3.dp)
+                            .fillMaxWidth().clip(RoundedCornerShape(8.dp))
+                            .background(scheme.surface).padding(horizontal = 18.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            Icons.Filled.Block, null, tint = scheme.error,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(Modifier.width(14.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(call.number, fontWeight = FontWeight.Medium)
+                            val sim = call.simLabel.takeIf { it.isNotBlank() }
+                            Text(
+                                buildString {
+                                    append(relativeTimeText(call.at))
+                                    append(" · ")
+                                    append(absoluteTimeText(call.at))
+                                    if (sim != null) append(" · ").append(sim)
+                                },
+                                color = scheme.onSurfaceVariant,
+                                fontSize = 12.sp,
+                            )
                         }
                     }
                 }

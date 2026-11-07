@@ -104,7 +104,10 @@ internal class CallNotificationController(
         val builder = Notification.Builder(service, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_call)
             .setContentTitle(service.getString(title))
-            .setContentText(displayName)
+            // 通知栏也要能看出是哪张卡打来的 —— 用户不一定会打开通话页。
+            .setContentText(
+                CallManager.sim?.slotLabel?.let { "$displayName · $it" } ?: displayName
+            )
             .setContentIntent(contentIntent)
             .setCategory(Notification.CATEGORY_CALL)
             .setVisibility(Notification.VISIBILITY_PUBLIC)

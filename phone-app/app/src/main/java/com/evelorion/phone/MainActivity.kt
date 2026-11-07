@@ -23,6 +23,7 @@ import com.evelorion.phone.telecom.DialerRole
 import com.evelorion.phone.telecom.CallScreeningRole
 import com.evelorion.phone.telecom.DialNumber
 import com.evelorion.phone.telecom.CallManager
+import com.evelorion.phone.telecom.SimCards
 import com.evelorion.phone.telecom.SystemCallLogCleaner
 import com.evelorion.phone.ui.CrashReport
 import com.evelorion.phone.ui.PhoneApp
@@ -219,8 +220,15 @@ class MainActivity : ComponentActivity() {
             return
         }
         val telecom = getSystemService(Context.TELECOM_SERVICE) as? TelecomManager ?: return
+        // 拨号盘上选的那张卡。没有选择或 ROM 不支持时留空，交回系统默认语音卡。
+        val extras = Bundle()
+        val handle = SimCards.selected(this)
+            ?.let { SimCards.phoneAccountFor(this, it.subscriptionId) }
+        if (handle != null) {
+            extras.putParcelable(TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE, handle)
+        }
         runCatching {
-            telecom.placeCall(Uri.fromParts("tel", number, null), Bundle())
+            telecom.placeCall(Uri.fromParts("tel", number, null), extras)
         }.onFailure {
             Toast.makeText(this, "拨号失败：${it.message}", Toast.LENGTH_SHORT).show()
         }

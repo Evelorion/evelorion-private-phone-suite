@@ -137,6 +137,8 @@ private fun CallRow(
         append(call.kind.label)
         append(" · ").append(call.time)
         call.duration?.let { append(" · ").append(it) }
+        // 历史记录也标卡：事后想「这通是打到哪个号的」只能靠这里。
+        call.simLabel.takeIf { it.isNotBlank() }?.let { append(" · ").append(it) }
     }
 
     Row(

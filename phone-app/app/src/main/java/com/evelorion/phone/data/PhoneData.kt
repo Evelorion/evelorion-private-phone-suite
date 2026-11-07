@@ -149,6 +149,7 @@ object PhoneData {
                     displayBg = AvatarBg[colorIndex(display)],
                     displayFg = AvatarFg[colorIndex(display)],
                     displayCity = "",
+                    simLabel = r.simLabel,
                 )
             }
         }.onFailure { Log.w(TAG, "读取通话记录失败", it) }.getOrDefault(emptyList())

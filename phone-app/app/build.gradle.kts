@@ -18,8 +18,8 @@ android {
         applicationId = "com.evelorion.phone"
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
-        versionCode = 23
-        versionName = "1.0.1-preview.23"
+        versionCode = 24
+        versionName = "1.0.2-sim"
 
         ksp { arg("room.schemaLocation", "$projectDir/schemas") }
 
@@ -54,6 +54,11 @@ android {
         !keystorePassword.isNullOrBlank() &&
         !signingKeyAlias.isNullOrBlank() &&
         !signingKeyPassword.isNullOrBlank()
+    // 官方签名证书指纹，保持不变。
+    //
+    // 它保证「通讯录 / 电话 / 短信」三个包用的是同一把钥匙，signature 级权限
+    // （私密联系人、保险库桥接）才生效。本地 signing/shared.jks 就是这把钥匙
+    // （别名 private-edition），构建时会实时算指纹并和这里比对，对不上直接失败。
     val officialCertSha256 = "127d2f23c90868b267016c66f01a4b5550e2a04c4a2cb25c6000467cf6611b4b"
     val releaseRequested = gradle.startParameter.taskNames.any {
         it.contains("release", ignoreCase = true)

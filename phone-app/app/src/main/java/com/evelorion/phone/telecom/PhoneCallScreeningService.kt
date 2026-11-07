@@ -2,6 +2,7 @@ package com.evelorion.phone.telecom
 
 import android.telecom.Call
 import android.telecom.CallScreeningService
+import com.evelorion.phone.data.BlockedCallStore
 import com.evelorion.phone.data.BlockedNumberStore
 
 /**
@@ -18,6 +19,13 @@ class PhoneCallScreeningService : CallScreeningService() {
                 number.isNotBlank() &&
                 BlockedNumberStore.isBlocked(this, number)
         }.getOrDefault(false)
+
+        if (blocked) {
+            // 拒接之后系统界面只留一条「已拦截」，不写下来就再也查不到
+            // 「这个号几点打的、打了几次、落在哪张卡」。
+            val simLabel = runCatching { SimCards.labelForDetails(this, callDetails) }.getOrDefault("")
+            runCatching { BlockedCallStore.record(this, number, simLabel) }
+        }
 
         val response = CallResponse.Builder()
             .setDisallowCall(blocked)
